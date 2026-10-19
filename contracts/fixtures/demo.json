@@ -1,0 +1,59 @@
+{
+  "isDemo": true,
+  "users": [
+    "buyer",
+    "traveler",
+    "outsider",
+    "revoked"
+  ],
+  "accounts": [
+    {
+      "id": "personal-buyer",
+      "type": "PERSONAL",
+      "displayName": "Minha conta pessoal",
+      "ownerId": "buyer"
+    },
+    {
+      "id": "company-demo",
+      "type": "ORGANIZATION",
+      "displayName": "Empresa demonstração",
+      "taxId": "12.ABC.345/01DE-35"
+    },
+    {
+      "id": "personal-outsider",
+      "type": "PERSONAL",
+      "displayName": "Outra pessoa",
+      "ownerId": "outsider"
+    }
+  ],
+  "memberships": [
+    {
+      "userId": "buyer",
+      "accountId": "company-demo",
+      "role": "BUYER",
+      "active": true
+    },
+    {
+      "userId": "revoked",
+      "accountId": "company-demo",
+      "role": "BUYER",
+      "active": false
+    }
+  ],
+  "trips": [
+    {
+      "id": "trip-ny-sp",
+      "travelerName": "Ana C. (exemplo)",
+      "origin": "Nova York (EUA)",
+      "destination": "São Paulo (SP)",
+      "departureDate": "2026-12-15",
+      "timeZone": "America/Sao_Paulo",
+      "availableWeightGrams": 8000,
+      "pricePerKg": {
+        "amount": "4500",
+        "currency": "USD"
+      },
+      "isDemo": true
+    }
+  ]
+}

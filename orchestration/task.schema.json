@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trago.invalid/schemas/task.schema.json",
+  "title": "Trago local task DAG",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "tasks"
+  ],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "tasks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "spec",
+          "description",
+          "role",
+          "agent",
+          "dependencies",
+          "allowed_paths",
+          "expected_outputs",
+          "acceptance_criteria",
+          "verification_commands",
+          "risk",
+          "max_retries",
+          "timeout_seconds",
+          "approved"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"
+          },
+          "spec": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "role": {
+            "type": "string",
+            "minLength": 1
+          },
+          "agent": {
+            "enum": [
+              "codex",
+              "agy",
+              "pi"
+            ]
+          },
+          "dependencies": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            }
+          },
+          "allowed_paths": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "expected_outputs": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "acceptance_criteria": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "verification_commands": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "risk": {
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ]
+          },
+          "max_retries": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 5
+          },
+          "timeout_seconds": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 86400
+          },
+          "approved": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  },
+  "$comment": "scripts/agents.py additionally validates DAG cycles, normalized scopes, reserved paths, dependency IDs and output ownership. No schema network retrieval is performed."
+}

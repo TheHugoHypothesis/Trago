@@ -1,4 +1,18 @@
 # Byte-compiled / optimized / DLL files
+# Local agent controller state, worktrees and per-task artifacts
+.agent-state/
+.worktrees/
+.task/
+node_modules/
+.next/
+.gradle/
+.kotlin/
+local.properties
+*.jks
+*.keystore
+.env.*
+!.env.example
+
 __pycache__/
 *.py[codz]
 *$py.class
