@@ -1,0 +1,21 @@
+FROM docker.io/library/node:22-bookworm-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
+
+COPY contracts /app/contracts
+COPY backend/package*.json /app/backend/
+WORKDIR /app/backend
+RUN npm ci
+
+COPY backend /app/backend
+RUN npm run build
+
+ENV NODE_ENV=development \
+    TRAGO_DEMO_AUTH=true \
+    PORT=3001
+
+EXPOSE 3001
+
+CMD ["node", "dist/main.js"]

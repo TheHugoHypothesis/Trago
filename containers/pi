@@ -1,3 +1,0 @@
-#!/bin/sh
-# Only installed application code is mounted here, never the user's entire home.
-exec node /opt/pi/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js "$@"

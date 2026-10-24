@@ -1,0 +1,17 @@
+FROM docker.io/library/debian:bookworm-slim
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    FLUTTER_HOME=/opt/flutter \
+    PATH=/opt/flutter/bin:/opt/flutter/bin/cache/dart-sdk/bin:$PATH
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl git unzip xz-utils zip libglu1-mesa ca-certificates \
+    clang cmake ninja-build pkg-config libgtk-3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN git clone -b stable --depth 1 https://github.com/flutter/flutter.git /opt/flutter \
+    && git config --global --add safe.directory /opt/flutter \
+    && flutter precache --linux
+
+WORKDIR /workspace
+CMD ["flutter", "--version"]

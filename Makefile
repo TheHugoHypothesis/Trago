@@ -1,50 +1,44 @@
-.PHONY: verify-foundation verify-foundation-local containers-build containers-doctor agents agents-validate verify
-.PHONY: start-frontend start-backend start-android start-all mvp-up mvp-down mvp-logs
+.PHONY: help up down logs restart backend-build backend-test backend-dev flutter-test flutter-run clean
 
-start-frontend:
-	python3 -B scripts/start_agent.py frontend
+COMPOSE_FILE = containers/compose.yaml
 
-start-backend:
-	python3 -B scripts/start_agent.py backend
+help:
+	@echo "Comandos disponíveis:"
+	@echo "  make up            - Inicia PostgreSQL e Backend via Podman"
+	@echo "  make down          - Para todos os containers do Podman"
+	@echo "  make logs          - Acompanha logs dos containers Podman"
+	@echo "  make restart       - Reinicia os containers Podman"
+	@echo "  make backend-build - Compila a API TypeScript"
+	@echo "  make backend-test  - Executa a suíte de testes da API"
+	@echo "  make backend-dev   - Executa a API localmente com recarga"
+	@echo "  make flutter-test  - Executa testes do frontend Flutter"
+	@echo "  make flutter-run   - Executa o app Flutter"
 
-start-android:
-	python3 -B scripts/start_agent.py android
+up:
+	podman compose -f $(COMPOSE_FILE) up -d
 
-start-all:
-	python3 -B scripts/start_agent.py all
+down:
+	podman compose -f $(COMPOSE_FILE) down
 
-mvp-up:
-	python3 -B scripts/mvp.py up
+logs:
+	podman compose -f $(COMPOSE_FILE) logs -f
 
-mvp-down:
-	python3 -B scripts/mvp.py down
+restart: down up
 
-mvp-logs:
-	python3 -B scripts/mvp.py logs
+backend-build:
+	cd backend && npm run build
 
-verify-foundation:
-ifeq ($(TRAGO_CONTAINER),1)
-	$(MAKE) verify-foundation-local
-else
-	python3 -B scripts/podman_env.py run --execute -- make verify-foundation-local
-endif
+backend-test:
+	cd backend && DATABASE_URL="postgresql://trago:tragopassword@localhost:5432/trago" npm test
 
-verify-foundation-local:
-	python3 -B -m unittest discover -s tests -v
-	python3 -B scripts/agents.py validate
+backend-dev:
+	cd backend && NODE_ENV=development TRAGO_DEMO_AUTH=true npm run dev
 
-containers-build:
-	python3 -B scripts/podman_env.py build
+flutter-test:
+	cd mobile && flutter test
 
-containers-doctor:
-	python3 -B scripts/podman_env.py doctor
+flutter-run:
+	cd mobile && flutter run
 
-agents:
-	python3 -B scripts/agents.py list
-
-agents-validate:
-	python3 -B scripts/agents.py validate
-
-verify:
-	@echo 'Verificação completa do SaaS ainda não implementada. Use make verify-foundation para o controlador local.'
-	@exit 2
+clean:
+	rm -rf backend/dist mobile/build

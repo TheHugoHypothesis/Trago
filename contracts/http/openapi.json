@@ -408,6 +408,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ]
       },
@@ -466,6 +474,16 @@
           },
           "409": {
             "description": "Idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Capacity exceeded",
             "content": {
               "application/json": {
                 "schema": {
