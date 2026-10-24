@@ -4,6 +4,10 @@ Marketplace cross-border para conexão entre compradores (**Pessoa Física** e *
 
 ![Design Conceitual](InitialAssets/Design.png)
 
+### Lean Canvas (`InitialAssets/LeanCanvas.png`)
+
+![Lean Canvas Trago!](InitialAssets/LeanCanvas.png)
+
 ## Estrutura do Projeto
 
 O repositório mantém uma arquitetura limpa, modular e 100% focada na aplicação mobile em **Flutter** e backend isolado via **Podman**:
