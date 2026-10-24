@@ -44,3 +44,4 @@ Thumbs.db
 coverage/
 *.lcov
 *.log
+releases/*.apk
