@@ -12,8 +12,8 @@ RUN npm ci
 COPY backend /app/backend
 RUN npm run build
 
-ENV NODE_ENV=development \
-    TRAGO_DEMO_AUTH=true \
+ENV NODE_ENV=production \
+    TRAGO_DEMO_AUTH=false \
     PORT=3001
 
 EXPOSE 3001

@@ -1,5 +1,5 @@
 name: trago
-description: "A new Flutter project."
+description: "Protótipo acadêmico Trago, sem pagamentos reais."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -40,8 +40,8 @@ dependencies:
   flutter_map: ^8.3.2
   latlong2: ^0.10.1
   url_launcher: ^6.3.3
-  qr_flutter: ^4.1.0
   share_plus: ^13.3.1
+  flutter_secure_storage: ^11.2.0
 
 dev_dependencies:
   flutter_test:

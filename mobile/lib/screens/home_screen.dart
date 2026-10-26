@@ -72,7 +72,10 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             const Row(
               children: [
-                Icon(Icons.notifications_active_outlined, color: TragoColors.navy),
+                Icon(
+                  Icons.notifications_active_outlined,
+                  color: TragoColors.navy,
+                ),
                 SizedBox(width: 10),
                 Text(
                   'Notificações',
@@ -88,17 +91,17 @@ class _HomeScreenState extends State<HomeScreen> {
             _NotificationTile(
               icon: Icons.flight_land_rounded,
               color: TragoColors.verifiedBlue,
-              title: 'Ana C. confirmou voo de Nova York',
-              subtitle: 'Chegada prevista em São Paulo (GRU) em 15 de dez.',
-              time: 'Há 12 min',
+              title: 'Exemplo de notificação de viagem',
+              subtitle: 'Voo e chegada não são monitorados.',
+              time: 'Demo',
             ),
             const Divider(height: 20, color: TragoColors.borderGray),
             _NotificationTile(
               icon: Icons.verified_user_outlined,
               color: TragoColors.mint,
-              title: 'Cálculo fiscal atualizado',
-              subtitle: 'Câmbio comercial travado com proteção sem surpresas.',
-              time: 'Há 2 h',
+              title: 'Exemplo de estimativa fiscal',
+              subtitle: 'Sem garantia de câmbio ou validação aduaneira.',
+              time: 'Demo',
             ),
             const SizedBox(height: 12),
           ],
@@ -110,6 +113,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final state = Provider.of<AppState>(context);
+    final currentAccount = state.selectedAccount;
 
     return Scaffold(
       backgroundColor: TragoColors.paper,
@@ -131,7 +135,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       onTap: () => widget.onNavigateTab(4),
                       borderRadius: BorderRadius.circular(20),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: TragoColors.skyLight,
                           borderRadius: BorderRadius.circular(20),
@@ -141,7 +148,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              state.selectedAccount.isOrganization
+                              currentAccount?.isOrganization == true
                                   ? Icons.business_rounded
                                   : Icons.person_outline_rounded,
                               size: 15,
@@ -149,7 +156,11 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              state.selectedAccount.isOrganization ? 'Conta PJ' : 'Conta PF',
+                              currentAccount == null
+                                  ? 'Sessão'
+                                  : currentAccount.isOrganization
+                                  ? 'Conta PJ'
+                                  : 'Conta PF',
                               style: const TextStyle(
                                 color: TragoColors.navy,
                                 fontSize: 12,
@@ -265,8 +276,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 Expanded(
                   child: _ValuePropBadge(
                     icon: Icons.verified_user_outlined,
-                    title: 'Seguro',
-                    subtitle: 'e com cálculo fiscal',
+                    title: 'Simulação',
+                    subtitle: 'sem pagamento real',
                   ),
                 ),
               ],
@@ -340,7 +351,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
                       side: BorderSide(
-                        color: selected ? TragoColors.navy : TragoColors.borderGray,
+                        color: selected
+                            ? TragoColors.navy
+                            : TragoColors.borderGray,
                       ),
                     ),
                   );
@@ -361,7 +374,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     product: product,
                     onImportTap: () {
                       state.selectCatalogProduct(product);
-                      widget.onNavigateTab(2); // Vai direto para Detalhes do Pedido
+                      widget.onNavigateTab(
+                        2,
+                      ); // Vai direto para Detalhes do Pedido
                     },
                   );
                 },
@@ -479,11 +494,7 @@ class _ValuePropBadge extends StatelessWidget {
             color: TragoColors.skyLight,
             shape: BoxShape.circle,
           ),
-          child: Icon(
-            icon,
-            color: TragoColors.verifiedBlue,
-            size: 24,
-          ),
+          child: Icon(icon, color: TragoColors.verifiedBlue, size: 24),
         ),
         const SizedBox(height: 8),
         Text(
@@ -564,10 +575,7 @@ class _NotificationTile extends StatelessWidget {
         ),
         Text(
           time,
-          style: const TextStyle(
-            color: TragoColors.muted,
-            fontSize: 11,
-          ),
+          style: const TextStyle(color: TragoColors.muted, fontSize: 11),
         ),
       ],
     );

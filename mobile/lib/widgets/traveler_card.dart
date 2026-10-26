@@ -38,19 +38,22 @@ class TravelerCard extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Coluna Esquerda: Avatar + selo "Verificado"
+                // Viagens de exemplo e identidade sem verificação documental.
                 Column(
                   children: [
                     _TravelerAvatar(trip: trip),
                     const SizedBox(height: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 3.5,
+                      ),
                       decoration: BoxDecoration(
                         color: TragoColors.mintLight,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Text(
-                        'Verificado',
+                      child: Text(
+                        trip.isDemo ? 'Exemplo' : 'Não verificado',
                         style: TextStyle(
                           color: TragoColors.mint,
                           fontSize: 11,
@@ -81,35 +84,31 @@ class TravelerCard extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 5),
-                          const Icon(
-                            Icons.verified_rounded,
-                            color: TragoColors.verifiedBlue,
-                            size: 18,
-                          ),
                         ],
                       ),
                       const SizedBox(height: 3),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.star_rounded,
-                            color: TragoColors.starAmber,
-                            size: 17,
-                          ),
-                          const SizedBox(width: 3),
-                          Flexible(
-                            child: Text(
-                              '${trip.rating.toStringAsFixed(1)} (${trip.reviewCount})',
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: TragoColors.muted,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
+                      if (trip.isDemo)
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.star_rounded,
+                              color: TragoColors.starAmber,
+                              size: 17,
+                            ),
+                            const SizedBox(width: 3),
+                            Flexible(
+                              child: Text(
+                                '${trip.rating.toStringAsFixed(1)} (${trip.reviewCount}) • avaliação ilustrativa',
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: TragoColors.muted,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
+                          ],
+                        ),
                       const SizedBox(height: 8),
                       _InfoRow(
                         icon: Icons.flight_takeoff_rounded,
@@ -123,7 +122,8 @@ class TravelerCard extends StatelessWidget {
                       const SizedBox(height: 4),
                       _InfoRow(
                         icon: Icons.luggage_outlined,
-                        text: 'Espaço disponível: ${trip.formattedAvailableWeight}',
+                        text:
+                            'Disponível: ${trip.formattedAvailableWeight} de ${trip.formattedTotalWeight}',
                       ),
                     ],
                   ),

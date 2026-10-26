@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Trago local MVP contract",
-    "version": "0.1.0",
-    "description": "Frozen parallel implementation baseline. Synthetic data only. Bearer dev:buyer, dev:traveler, dev:outsider, dev:revoked accepted only in explicit development mode; never production. No real payments, import clearance or escrow."
+    "version": "0.6.0",
+    "description": "Local academic prototype with real authentication, authorized accounts, trip management, auditable traveler decisions and atomic capacity reservation in integer grams. Demo identities remain limited to development/test. Acceptance reserves capacity but does not confirm payment or custody."
   },
   "servers": [
     {
@@ -114,6 +114,133 @@
           },
           "409": {
             "description": "Idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/me/accounts/organizations": {
+      "post": {
+        "operationId": "createOrganizationAccount",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationAccountInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Organization account created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Account"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Unavailable to a demo identity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/me/accounts/{accountId}/members": {
+      "post": {
+        "operationId": "addOrganizationAccountMember",
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationMemberInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Membership created or reactivated"
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Unavailable to a demo identity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Account or user not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -244,6 +371,18 @@
       },
       "post": {
         "operationId": "createTrip",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            }
+          }
+        ],
         "responses": {
           "201": {
             "description": "OK",
@@ -312,6 +451,214 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/TripInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/me/trips": {
+      "get": {
+        "operationId": "listOwnTrips",
+        "responses": {
+          "200": {
+            "description": "Trips owned by the authenticated user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Trip"
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/trips/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getTrip",
+        "responses": {
+          "200": {
+            "description": "Available trip or trip owned by the requester",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Trip"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Trip not found or unavailable to this user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateTrip",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TripInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated trip",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Trip"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Trip not found or not owned by the requester",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Cancelled, expired or already referenced trip",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/trips/{id}/cancel": {
+      "post": {
+        "operationId": "cancelTrip",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cancelled trip; repeated cancellation is idempotent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Trip"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Trip not found or not owned by the requester",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Expired trip cannot be cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
               }
             }
           }
@@ -522,7 +869,7 @@
         "operationId": "getPurchaseRequest",
         "responses": {
           "200": {
-            "description": "OK",
+            "description": "Request visible to an authorized buyer account member or to the trip owner",
             "content": {
               "application/json": {
                 "schema": {
@@ -593,13 +940,357 @@
           }
         ]
       }
+    },
+    "/v1/auth/register": {
+      "post": {
+        "operationId": "registerUser",
+        "security": [],
+        "description": "Rate limited per IP; login also per normalized email. Email is case insensitive. Tokens and responses must not be cached.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Authenticated session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthSession"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Registration unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many attempts; retry after the 15 minute window",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/login": {
+      "post": {
+        "operationId": "loginUser",
+        "security": [],
+        "description": "Rate limited per IP; login also per normalized email. Email is case insensitive. Tokens and responses must not be cached.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authenticated session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthSession"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many attempts; retry after the 15 minute window",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/me": {
+      "get": {
+        "operationId": "getAuthenticatedUser",
+        "responses": {
+          "200": {
+            "description": "Current user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthUser"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, expired or revoked session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/logout": {
+      "post": {
+        "operationId": "logoutSession",
+        "description": "Revokes this access token session. Other sessions remain active. Reusing a revoked token returns 401.",
+        "responses": {
+          "204": {
+            "description": "Session revoked"
+          },
+          "401": {
+            "description": "Missing, invalid, expired or revoked session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/me/incoming-requests": {
+      "get": {
+        "operationId": "listIncomingPurchaseRequests",
+        "description": "Lists requests associated with trips owned by the authenticated traveler.",
+        "responses": {
+          "200": {
+            "description": "Incoming requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PurchaseRequest"
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/purchase-requests/{id}/accept": {
+      "post": {
+        "operationId": "acceptPurchaseRequest",
+        "description": "Atomically accepts a pending request and reserves its integer weight on the trip. Repeating the same acceptance is safe and does not reserve twice. No payment or custody is confirmed.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Purchase request visible to the authorized buyer account or trip owner",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseRequest"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request not found or trip not owned by requester",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicting decision or unavailable trip",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Insufficient remaining capacity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/purchase-requests/{id}/reject": {
+      "post": {
+        "operationId": "rejectPurchaseRequest",
+        "description": "Rejects a pending request without consuming capacity. Repeating the same rejection is safe.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Purchase request visible to the authorized buyer account or trip owner",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseRequest"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request not found or trip not owned by requester",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicting decision or unavailable trip",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Insufficient remaining capacity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "securitySchemes": {
       "bearerAuth": {
         "type": "http",
-        "scheme": "bearer"
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "HS256 access token from /v1/auth/register or /v1/auth/login. Demo dev:* tokens require explicit development/test mode and are not accepted by /v1/auth/me or /v1/auth/logout."
       }
     },
     "schemas": {
@@ -643,6 +1334,13 @@
           },
           "taxId": {
             "type": "string"
+          },
+          "accessRole": {
+            "type": "string",
+            "enum": [
+              "OWNER",
+              "MEMBER"
+            ]
           }
         },
         "required": [
@@ -651,28 +1349,62 @@
           "displayName"
         ]
       },
+      "OrganizationAccountInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "displayName": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 120
+          }
+        },
+        "required": [
+          "displayName"
+        ]
+      },
+      "OrganizationMemberInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          }
+        },
+        "required": [
+          "email"
+        ]
+      },
       "TripInput": {
         "type": "object",
         "additionalProperties": false,
         "properties": {
           "origin": {
             "type": "string",
-            "minLength": 2
+            "minLength": 2,
+            "maxLength": 200
           },
           "destination": {
             "type": "string",
-            "minLength": 2
+            "minLength": 2,
+            "maxLength": 200
           },
           "departureDate": {
             "type": "string",
             "format": "date"
           },
           "timeZone": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
           },
           "availableWeightGrams": {
             "type": "integer",
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 100000,
+            "description": "Total capacity offered when creating or editing a trip, in integer grams."
           },
           "pricePerKg": {
             "$ref": "#/components/schemas/Money"
@@ -775,7 +1507,8 @@
           },
           "availableWeightGrams": {
             "type": "integer",
-            "minimum": 1
+            "minimum": 0,
+            "description": "Remaining capacity in integer grams: total minus reserved."
           },
           "pricePerKg": {
             "$ref": "#/components/schemas/Money"
@@ -787,10 +1520,27 @@
             "type": "string"
           },
           "isDemo": {
-            "type": "boolean",
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string",
             "enum": [
-              true
+              "AVAILABLE",
+              "CANCELLED",
+              "EXPIRED"
             ]
+          },
+          "totalWeightGrams": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100000,
+            "description": "Total capacity offered for the trip, in integer grams."
+          },
+          "reservedWeightGrams": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000,
+            "description": "Capacity atomically reserved by accepted requests, in integer grams."
           }
         },
         "required": [
@@ -802,7 +1552,10 @@
           "pricePerKg",
           "id",
           "travelerName",
-          "isDemo"
+          "isDemo",
+          "status",
+          "totalWeightGrams",
+          "reservedWeightGrams"
         ]
       },
       "PurchaseRequest": {
@@ -824,12 +1577,23 @@
           "status": {
             "type": "string",
             "enum": [
-              "DRAFT"
-            ]
+              "PENDING",
+              "ACCEPTED",
+              "REJECTED"
+            ],
+            "description": "Traveler decision state. ACCEPTED reserves capacity atomically but does not confirm payment or custody."
           },
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "tripCapacity": {
+            "$ref": "#/components/schemas/TripCapacity",
+            "description": "Current confirmed capacity returned with a traveler decision."
           }
         },
         "required": [
@@ -839,6 +1603,138 @@
           "product",
           "status",
           "createdAt"
+        ]
+      },
+      "RegisterInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          },
+          "password": {
+            "type": "string",
+            "minLength": 12,
+            "maxLength": 128,
+            "writeOnly": true,
+            "description": "No trimming or normalization. At least 12 characters."
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          }
+        },
+        "required": [
+          "email",
+          "password",
+          "displayName"
+        ]
+      },
+      "LoginInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "writeOnly": true
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "AuthUser": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "displayName",
+          "createdAt"
+        ]
+      },
+      "AuthSession": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "tokenType": {
+            "type": "string",
+            "enum": [
+              "Bearer"
+            ]
+          },
+          "expiresIn": {
+            "type": "integer",
+            "minimum": 60,
+            "maximum": 86400
+          },
+          "user": {
+            "$ref": "#/components/schemas/AuthUser"
+          }
+        },
+        "required": [
+          "accessToken",
+          "tokenType",
+          "expiresIn",
+          "user"
+        ]
+      },
+      "TripCapacity": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "totalWeightGrams": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100000
+          },
+          "reservedWeightGrams": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "availableWeightGrams": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000
+          }
+        },
+        "required": [
+          "totalWeightGrams",
+          "reservedWeightGrams",
+          "availableWeightGrams"
         ]
       }
     }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../api/public_integrations_service.dart';
@@ -19,7 +18,7 @@ class DraftScreen extends StatefulWidget {
 }
 
 class _DraftScreenState extends State<DraftScreen> {
-  int _activeStep = 1; // 1: Pedido, 2: Cálculo Fiscal, 3: Pagamento, 4: Acompanhamento
+  int _activeStep = 1; // 1: Pedido, 2: Estimativa, 3: Solicitação, 4: Pedidos
   String _productTitle = 'Fone de ouvido sem fio (Exemplo)';
   String _productUrl = 'https://www.amazon.com/dp/B09XS7JWHH';
   int _priceUsd = 300;
@@ -28,7 +27,6 @@ class _DraftScreenState extends State<DraftScreen> {
   IconData _productIcon = Icons.headphones_rounded;
   String _productImageAsset = 'assets/images/products/sony_xm5.jpg';
   String? _lastSyncedProductId;
-  bool _isSubmitting = false;
 
   static const List<String> _categories = [
     'Eletrônicos',
@@ -42,7 +40,9 @@ class _DraftScreenState extends State<DraftScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final selectedProduct = Provider.of<AppState>(context).selectedCatalogProduct;
+    final selectedProduct = Provider.of<AppState>(
+      context,
+    ).selectedCatalogProduct;
     if (_lastSyncedProductId != selectedProduct.id) {
       _lastSyncedProductId = selectedProduct.id;
       _productTitle = selectedProduct.name;
@@ -70,7 +70,9 @@ class _DraftScreenState extends State<DraftScreen> {
     final titleCtrl = TextEditingController(text: _productTitle);
     final urlCtrl = TextEditingController(text: _productUrl);
     final priceCtrl = TextEditingController(text: _priceUsd.toString());
-    final weightCtrl = TextEditingController(text: _weightKg.toStringAsFixed(1));
+    final weightCtrl = TextEditingController(
+      text: _weightKg.toStringAsFixed(1),
+    );
 
     showModalBottomSheet(
       context: context,
@@ -114,7 +116,11 @@ class _DraftScreenState extends State<DraftScreen> {
                   itemBuilder: (_, idx) {
                     final item = kCuratedCatalog[idx];
                     return ActionChip(
-                      avatar: Icon(item.icon, size: 16, color: TragoColors.navy),
+                      avatar: Icon(
+                        item.icon,
+                        size: 16,
+                        color: TragoColors.navy,
+                      ),
                       label: Text(
                         item.brand,
                         style: const TextStyle(
@@ -140,7 +146,9 @@ class _DraftScreenState extends State<DraftScreen> {
               const SizedBox(height: 12),
               TextField(
                 controller: urlCtrl,
-                decoration: const InputDecoration(labelText: 'Link da loja no exterior'),
+                decoration: const InputDecoration(
+                  labelText: 'Link da loja no exterior',
+                ),
               ),
               const SizedBox(height: 12),
               Row(
@@ -149,14 +157,18 @@ class _DraftScreenState extends State<DraftScreen> {
                     child: TextField(
                       controller: priceCtrl,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Valor (US\$)'),
+                      decoration: const InputDecoration(
+                        labelText: 'Valor (US\$)',
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: TextField(
                       controller: weightCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       decoration: const InputDecoration(labelText: 'Peso (kg)'),
                     ),
                   ),
@@ -172,9 +184,11 @@ class _DraftScreenState extends State<DraftScreen> {
                         _productTitle = titleCtrl.text.trim();
                       }
                       _productUrl = urlCtrl.text.trim();
-                      _priceUsd = (int.tryParse(priceCtrl.text.trim()) ?? _priceUsd)
-                          .clamp(10, 20000);
-                      _weightKg = (double.tryParse(
+                      _priceUsd =
+                          (int.tryParse(priceCtrl.text.trim()) ?? _priceUsd)
+                              .clamp(10, 20000);
+                      _weightKg =
+                          (double.tryParse(
                                     weightCtrl.text.trim().replaceAll(',', '.'),
                                   ) ??
                                   _weightKg)
@@ -182,7 +196,7 @@ class _DraftScreenState extends State<DraftScreen> {
                     });
                     Navigator.pop(ctx);
                   },
-                  child: const Text('Atualizar cálculo fiscal'),
+                  child: const Text('Atualizar estimativa'),
                 ),
               ),
             ],
@@ -192,10 +206,14 @@ class _DraftScreenState extends State<DraftScreen> {
     );
   }
 
-  void _openPaymentSheet(BuildContext context, AppState state, TaxBreakdown tax) {
+  void _openPaymentSheet(
+    BuildContext context,
+    AppState state,
+    TaxBreakdown tax,
+  ) {
     setState(() => _activeStep = 3);
-    final pixPayload =
-        '00020126580014BR.GOV.BCB.PIX0136trago-escrow-${state.selectedTrip.id}5204000053039865407${tax.totalBrl}.005802BR5913TRAGO GLOBAL6009SAO PAULO62070503***6304ABCD';
+    bool isSubmitting = false;
+    String? submitError;
 
     showModalBottomSheet(
       context: context,
@@ -204,172 +222,197 @@ class _DraftScreenState extends State<DraftScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Confirmar Importação Segura',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                        color: TragoColors.navy,
-                      ),
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: TragoColors.mintLight,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Text(
-                      'Custódia Protegida',
-                      style: TextStyle(
-                        color: TragoColors.mint,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 11.5,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'O viajante ${state.selectedTrip.cleanTravelerName} só recebe o repasse após você confirmar o recebimento do produto em ${state.selectedTrip.destination}.',
-                style: const TextStyle(color: TragoColors.muted, fontSize: 13.5),
-              ),
-              const SizedBox(height: 16),
-
-              // QR Code PIX Gerado via qr_flutter (pub.dev)
-              Center(
-                child: Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: TragoColors.borderGray),
-                    boxShadow: TragoColors.softShadow,
-                  ),
-                  child: Column(
-                    children: [
-                      QrImageView(
-                        data: pixPayload,
-                        version: QrVersions.auto,
-                        size: 145,
-                        eyeStyle: const QrEyeStyle(
-                          eyeShape: QrEyeShape.square,
-                          color: TragoColors.navy,
-                        ),
-                        dataModuleStyle: const QrDataModuleStyle(
-                          dataModuleShape: QrDataModuleShape.square,
-                          color: TragoColors.navy,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        'QR Code PIX com Custódia Trago!',
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, updateSheet) => Padding(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Solicitar compra (demonstração)',
                         style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
                           color: TragoColors.navy,
                         ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: TragoColors.mintLight,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Text(
+                        'Sem pagamento',
+                        style: TextStyle(
+                          color: TragoColors.mint,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 11.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Esta etapa registra apenas uma solicitação na API de demonstração. Não há pagamento, custódia, reserva de capacidade ou rastreio.',
+                  style: const TextStyle(
+                    color: TragoColors.muted,
+                    fontSize: 13.5,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Nenhum código de pagamento é gerado nesta demonstração.
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: TragoColors.borderGray),
+                      boxShadow: TragoColors.softShadow,
+                    ),
+                    child: Column(
+                      children: [
+                        const Icon(
+                          Icons.info_outline_rounded,
+                          size: 72,
+                          color: TragoColors.navy,
+                        ),
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Pagamento indisponível nesta demonstração',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: TragoColors.navy,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: TragoColors.skyLight,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: TragoColors.skyBorder),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Estimativa ilustrativa, sem garantia fiscal',
+                              style: TextStyle(
+                                color: TragoColors.navy,
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'US\$ ${tax.totalUsd} (≈ R\$ ${tax.totalBrl})',
+                              style: const TextStyle(
+                                color: TragoColors.navy,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(
+                        Icons.info_outline_rounded,
+                        color: TragoColors.verifiedBlue,
+                        size: 32,
                       ),
                     ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
-
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: TragoColors.skyLight,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: TragoColors.skyBorder),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Total final garantido (com impostos)',
-                            style: TextStyle(
-                              color: TragoColors.navy,
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'US\$ ${tax.totalUsd} (≈ R\$ ${tax.totalBrl})',
-                            style: const TextStyle(
-                              color: TragoColors.navy,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ],
-                      ),
+                const SizedBox(height: 18),
+                if (submitError != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      submitError!,
+                      style: const TextStyle(color: TragoColors.coral),
                     ),
-                    const Icon(
-                      Icons.verified_user_rounded,
-                      color: TragoColors.verifiedBlue,
-                      size: 32,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.lock_outline_rounded),
-                  label: Text(
-                    _isSubmitting ? 'Confirmando pedido…' : 'Confirmar e Reservar Espaço',
                   ),
-                  onPressed: _isSubmitting
-                      ? null
-                      : () async {
-                          final messenger = ScaffoldMessenger.of(context);
-                          final nav = Navigator.of(ctx);
-                          setState(() => _isSubmitting = true);
-                          await state.createOrder(
-                            description: _productTitle,
-                            url: _productUrl,
-                            priceUsd: _priceUsd,
-                            weightGrams: (_weightKg * 1000).round(),
-                          );
-                          if (!mounted) return;
-                          setState(() {
-                            _isSubmitting = false;
-                            _activeStep = 4;
-                          });
-                          nav.pop();
-                          messenger.showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Pedido confirmado com cálculo fiscal garantido!',
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.send_rounded),
+                    label: Text(
+                      isSubmitting
+                          ? 'Enviando solicitação…'
+                          : submitError != null
+                          ? 'Tentar novamente'
+                          : 'Enviar solicitação',
+                    ),
+                    onPressed: isSubmitting
+                        ? null
+                        : () async {
+                            final messenger = ScaffoldMessenger.of(context);
+                            final nav = Navigator.of(ctx);
+                            if (isSubmitting) return;
+                            updateSheet(() {
+                              isSubmitting = true;
+                              submitError = null;
+                            });
+                            try {
+                              await state.createOrder(
+                                description: _productTitle,
+                                url: _productUrl,
+                                priceUsd: _priceUsd,
+                                weightGrams: (_weightKg * 1000).round(),
+                              );
+                            } catch (error) {
+                              if (!ctx.mounted) return;
+                              updateSheet(() {
+                                isSubmitting = false;
+                                submitError =
+                                    'Não foi possível enviar a solicitação: $error';
+                              });
+                              return;
+                            }
+                            if (!mounted || !ctx.mounted) return;
+                            setState(() {
+                              _activeStep = 4;
+                            });
+                            nav.pop();
+                            messenger.showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Solicitação salva na API de demonstração; aguardando decisão do viajante.',
+                                ),
+                                backgroundColor: TragoColors.mint,
+                                behavior: SnackBarBehavior.floating,
                               ),
-                              backgroundColor: TragoColors.mint,
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                          widget.onNavigateTab(1); // Vai para a aba Pedidos
-                        },
+                            );
+                            widget.onNavigateTab(1); // Vai para a aba Pedidos
+                          },
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -380,6 +423,33 @@ class _DraftScreenState extends State<DraftScreen> {
   Widget build(BuildContext context) {
     final state = Provider.of<AppState>(context);
     final trip = state.selectedTrip;
+    if (trip == null) {
+      return Scaffold(
+        backgroundColor: TragoColors.background,
+        appBar: AppBar(title: const Text('Detalhes do pedido')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.flight_outlined, size: 48),
+                const SizedBox(height: 12),
+                const Text(
+                  'Selecione uma viagem disponível antes de criar o pedido.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => widget.onNavigateTab(3),
+                  child: const Text('Ver viagens disponíveis'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     final fxRate = state.marketData.usdToBrl;
     final distanceKm = PublicIntegrationsService.calculateDistanceKm(
       trip.origin,
@@ -397,7 +467,11 @@ class _DraftScreenState extends State<DraftScreen> {
       appBar: AppBar(
         backgroundColor: TragoColors.paper,
         leading: IconButton(
-          icon: const Icon(Icons.chevron_left_rounded, size: 30, color: TragoColors.navy),
+          icon: const Icon(
+            Icons.chevron_left_rounded,
+            size: 30,
+            color: TragoColors.navy,
+          ),
           onPressed: () => widget.onNavigateTab(0),
         ),
         title: const Text('Detalhes do pedido'),
@@ -409,7 +483,7 @@ class _DraftScreenState extends State<DraftScreen> {
               SharePlus.instance.share(
                 ShareParams(
                   text:
-                      'Simulação Trago!: $_productTitle por US\$ ${tax.totalUsd} (≈ R\$ ${tax.totalBrl}) com impostos inclusos via ${trip.cleanTravelerName} (${trip.origin} → ${trip.destination}).',
+                      'Estimativa ilustrativa Trago: $_productTitle por US\$ ${tax.totalUsd} (≈ R\$ ${tax.totalBrl}) via ${trip.cleanTravelerName} (${trip.origin} → ${trip.destination}). Sem pagamento ou garantia fiscal.',
                 ),
               );
             },
@@ -420,10 +494,7 @@ class _DraftScreenState extends State<DraftScreen> {
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 30),
         children: [
           // Stepper de 4 etapas idêntico ao Design.png
-          _OrderStepper(
-            activeStep: _activeStep,
-            onStepTap: (step) => setState(() => _activeStep = step),
-          ),
+          _OrderStepper(activeStep: _activeStep),
           const SizedBox(height: 20),
 
           // Card do Produto com Foto Real (idêntico à tela 3 do Design.png)
@@ -524,7 +595,10 @@ class _DraftScreenState extends State<DraftScreen> {
                       onTap: () => _openEditProductDialog(context, state),
                       borderRadius: BorderRadius.circular(10),
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         child: Text(
                           'US\$ $_priceUsd',
                           style: const TextStyle(
@@ -558,7 +632,10 @@ class _DraftScreenState extends State<DraftScreen> {
                       borderRadius: BorderRadius.circular(12),
                       child: Container(
                         width: 128,
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 9,
+                        ),
                         decoration: BoxDecoration(
                           color: TragoColors.paper,
                           borderRadius: BorderRadius.circular(12),
@@ -625,7 +702,9 @@ class _DraftScreenState extends State<DraftScreen> {
                               )
                               .toList(),
                           onChanged: (val) {
-                            if (val != null) setState(() => _selectedCategory = val);
+                            if (val != null) {
+                              setState(() => _selectedCategory = val);
+                            }
                           },
                         ),
                       ),
@@ -682,7 +761,8 @@ class _DraftScreenState extends State<DraftScreen> {
                 _CostLineItem(
                   icon: Icons.inventory_2_outlined,
                   title: 'Produto + Frete com viajante',
-                  subtitle: '(US\$ ${tax.productUsd} + US\$ ${tax.travelerFeeUsd} com ${trip.cleanTravelerName})',
+                  subtitle:
+                      '(US\$ ${tax.productUsd} + US\$ ${tax.travelerFeeUsd} com ${trip.cleanTravelerName})',
                   amountText: 'US\$ ${tax.productPlusFreightUsd}',
                 ),
                 const SizedBox(height: 14),
@@ -771,7 +851,7 @@ class _DraftScreenState extends State<DraftScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Icon(
-                  Icons.verified_user_rounded,
+                  Icons.info_outline_rounded,
                   color: TragoColors.mint,
                   size: 28,
                 ),
@@ -781,7 +861,7 @@ class _DraftScreenState extends State<DraftScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Sem surpresas!',
+                        'Estimativa ilustrativa',
                         style: TextStyle(
                           color: TragoColors.navy,
                           fontSize: 14.5,
@@ -790,7 +870,7 @@ class _DraftScreenState extends State<DraftScreen> {
                       ),
                       SizedBox(height: 3),
                       Text(
-                        'O cálculo fiscal é feito antecipadamente, garantindo previsibilidade e conformidade aduaneira.',
+                        'Cálculo ilustrativo. Tributos e câmbio podem variar; não há validação ou conformidade aduaneira automática.',
                         style: TextStyle(
                           color: TragoColors.slate,
                           fontSize: 12.8,
@@ -805,14 +885,17 @@ class _DraftScreenState extends State<DraftScreen> {
           ),
           const SizedBox(height: 20),
 
-          // Botão Coral "Avançar para o pagamento →"
+          // Avança apenas para a revisão da solicitação.
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: TragoColors.coral,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 18,
+                  horizontal: 16,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(18),
                 ),
@@ -823,7 +906,7 @@ class _DraftScreenState extends State<DraftScreen> {
                 children: [
                   Flexible(
                     child: Text(
-                      'Avançar para o pagamento',
+                      'Revisar solicitação',
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 17,
@@ -845,20 +928,16 @@ class _DraftScreenState extends State<DraftScreen> {
 
 class _OrderStepper extends StatelessWidget {
   final int activeStep;
-  final ValueChanged<int> onStepTap;
 
-  const _OrderStepper({
-    required this.activeStep,
-    required this.onStepTap,
-  });
+  const _OrderStepper({required this.activeStep});
 
   @override
   Widget build(BuildContext context) {
     const steps = [
       {'num': 1, 'label': 'Pedido'},
-      {'num': 2, 'label': 'Cálculo Fiscal'},
-      {'num': 3, 'label': 'Pagamento'},
-      {'num': 4, 'label': 'Acompanhamento'},
+      {'num': 2, 'label': 'Estimativa'},
+      {'num': 3, 'label': 'Solicitação'},
+      {'num': 4, 'label': 'Pedidos'},
     ];
 
     return Row(
@@ -877,38 +956,37 @@ class _OrderStepper extends StatelessWidget {
         final label = item['label'] as String;
         final isActive = num <= activeStep;
 
-        return GestureDetector(
-          onTap: () => onStepTap(num),
-          child: Column(
-            children: [
-              Container(
-                width: 30,
-                height: 30,
-                decoration: BoxDecoration(
-                  color: isActive ? TragoColors.verifiedBlue : const Color(0xFFD0D5DD),
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  '$num',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 13.5,
-                  ),
+        return Column(
+          children: [
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: isActive
+                    ? TragoColors.verifiedBlue
+                    : const Color(0xFFD0D5DD),
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                '$num',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13.5,
                 ),
               ),
-              const SizedBox(height: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  color: isActive ? TragoColors.navy : TragoColors.muted,
-                  fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                  fontSize: 11.5,
-                ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: TextStyle(
+                color: isActive ? TragoColors.navy : TragoColors.muted,
+                fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                fontSize: 11.5,
               ),
-            ],
-          ),
+            ),
+          ],
         );
       }),
     );
@@ -935,11 +1013,7 @@ class _CostLineItem extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.only(top: 2),
-          child: Icon(
-            icon,
-            color: TragoColors.verifiedBlue,
-            size: 21,
-          ),
+          child: Icon(icon, color: TragoColors.verifiedBlue, size: 21),
         ),
         const SizedBox(width: 10),
         Expanded(

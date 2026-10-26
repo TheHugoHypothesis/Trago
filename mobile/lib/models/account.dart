@@ -3,15 +3,18 @@ class Account {
   final String type; // 'PERSONAL' | 'ORGANIZATION'
   final String displayName;
   final String? taxId;
+  final String? accessRole;
 
   const Account({
     required this.id,
     required this.type,
     required this.displayName,
     this.taxId,
+    this.accessRole,
   });
 
   bool get isOrganization => type == 'ORGANIZATION';
+  bool get canManageMembers => isOrganization && accessRole == 'OWNER';
 
   factory Account.fromJson(Map<String, dynamic> json) {
     return Account(
@@ -19,6 +22,7 @@ class Account {
       type: json['type'] as String? ?? 'PERSONAL',
       displayName: json['displayName'] as String? ?? '',
       taxId: json['taxId'] as String?,
+      accessRole: json['accessRole'] as String?,
     );
   }
 
@@ -27,6 +31,7 @@ class Account {
     'type': type,
     'displayName': displayName,
     if (taxId != null) 'taxId': taxId,
+    if (accessRole != null) 'accessRole': accessRole,
   };
 
   @override

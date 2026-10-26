@@ -1,0 +1,7 @@
+{
+  "description": "Synthetic test identities only. Tests generate random passwords; no credentials are seeded by migrations.",
+  "users": [
+    {"email": "alice@example.invalid", "displayName": "Alice (teste)"},
+    {"email": "bob@example.invalid", "displayName": "Bob (teste)"}
+  ]
+}

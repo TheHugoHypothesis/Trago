@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../state/app_state.dart';
 import '../theme/trago_theme.dart';
 import 'draft_screen.dart';
 import 'home_screen.dart';
@@ -32,6 +34,7 @@ class _MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
+    final state = context.watch<AppState>();
     final screens = [
       HomeScreen(
         onNavigateTab: _navigateToTab,
@@ -47,12 +50,37 @@ class _MainShellState extends State<MainShell> {
     ];
 
     return Scaffold(
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 220),
-        child: KeyedSubtree(
-          key: ValueKey<int>(_currentIndex),
-          child: screens[_currentIndex],
-        ),
+      body: Column(
+        children: [
+          Material(
+            color: TragoColors.skyLight,
+            child: SafeArea(
+              bottom: false,
+              child: SizedBox(
+                width: double.infinity,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  child: Text(
+                    state.isDemoMode
+                        ? 'MODO DEMONSTRAÇÃO • identidades e dados de exemplo • sem pagamentos ou verificação'
+                        : 'PROTÓTIPO ACADÊMICO • sessão autenticada • sem pagamentos ou verificação',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 11, color: TragoColors.navy),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 220),
+              child: KeyedSubtree(
+                key: ValueKey<int>(_currentIndex),
+                child: screens[_currentIndex],
+              ),
+            ),
+          ),
+        ],
       ),
       bottomNavigationBar: _TragoBottomBar(
         currentIndex: _currentIndex,
@@ -66,10 +94,7 @@ class _TragoBottomBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
 
-  const _TragoBottomBar({
-    required this.currentIndex,
-    required this.onTap,
-  });
+  const _TragoBottomBar({required this.currentIndex, required this.onTap});
 
   @override
   Widget build(BuildContext context) {

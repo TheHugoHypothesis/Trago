@@ -1,5 +1,29 @@
 import 'money.dart';
 
+class TripCapacity {
+  final int totalWeightGrams;
+  final int reservedWeightGrams;
+  final int availableWeightGrams;
+
+  const TripCapacity({
+    required this.totalWeightGrams,
+    required this.reservedWeightGrams,
+    required this.availableWeightGrams,
+  });
+
+  factory TripCapacity.fromJson(Map<String, dynamic> json) => TripCapacity(
+    totalWeightGrams: (json['totalWeightGrams'] as num).toInt(),
+    reservedWeightGrams: (json['reservedWeightGrams'] as num).toInt(),
+    availableWeightGrams: (json['availableWeightGrams'] as num).toInt(),
+  );
+
+  Map<String, dynamic> toJson() => {
+    'totalWeightGrams': totalWeightGrams,
+    'reservedWeightGrams': reservedWeightGrams,
+    'availableWeightGrams': availableWeightGrams,
+  };
+}
+
 class TaxBreakdown {
   final int productUsd;
   final int travelerFeeUsd;
@@ -77,7 +101,8 @@ class Product {
       description: json['description'] as String? ?? '',
       url: json['url'] as String?,
       price: Money.fromJson(json['price'] as Map<String, dynamic>? ?? {}),
-      estimatedWeightGrams: (json['estimatedWeightGrams'] as num?)?.toInt() ?? 0,
+      estimatedWeightGrams:
+          (json['estimatedWeightGrams'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -96,6 +121,8 @@ class PurchaseRequest {
   final Product product;
   final String status;
   final String createdAt;
+  final String? updatedAt;
+  final TripCapacity? tripCapacity;
 
   const PurchaseRequest({
     required this.id,
@@ -104,20 +131,28 @@ class PurchaseRequest {
     required this.product,
     required this.status,
     required this.createdAt,
+    this.updatedAt,
+    this.tripCapacity,
   });
+
+  bool get isPending => status == 'PENDING';
 
   String get statusLabelPt {
     switch (status) {
       case 'PAID':
       case 'ESCROW_PROTECTED':
-        return 'Pagamento Protegido';
+        return 'Status legado sem pagamento verificado';
       case 'IN_TRANSIT':
-        return 'Em Trânsito com Viajante';
+        return 'Trânsito não verificado (exemplo)';
       case 'DELIVERED':
-        return 'Entregue';
-      case 'DRAFT':
+        return 'Entrega não verificada (exemplo)';
+      case 'ACCEPTED':
+        return 'Aceita pelo viajante';
+      case 'REJECTED':
+        return 'Rejeitada pelo viajante';
+      case 'PENDING':
       default:
-        return 'Aguardando Viajante';
+        return 'Aguardando decisão';
     }
   }
 
@@ -127,8 +162,12 @@ class PurchaseRequest {
       accountId: json['accountId'] as String? ?? '',
       tripId: json['tripId'] as String? ?? '',
       product: Product.fromJson(json['product'] as Map<String, dynamic>? ?? {}),
-      status: json['status'] as String? ?? 'DRAFT',
+      status: json['status'] as String? ?? 'PENDING',
       createdAt: json['createdAt'] as String? ?? '',
+      updatedAt: json['updatedAt'] as String?,
+      tripCapacity: json['tripCapacity'] is Map<String, dynamic>
+          ? TripCapacity.fromJson(json['tripCapacity'] as Map<String, dynamic>)
+          : null,
     );
   }
 
@@ -139,6 +178,8 @@ class PurchaseRequest {
     'product': product.toJson(),
     'status': status,
     'createdAt': createdAt,
+    if (updatedAt != null) 'updatedAt': updatedAt,
+    if (tripCapacity != null) 'tripCapacity': tripCapacity!.toJson(),
   };
 }
 

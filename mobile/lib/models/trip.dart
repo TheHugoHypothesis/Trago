@@ -9,8 +9,11 @@ class Trip {
   final String departureDate;
   final String timeZone;
   final int availableWeightGrams;
+  final int totalWeightGrams;
+  final int reservedWeightGrams;
   final Money pricePerKg;
   final bool isDemo;
+  final String status;
   final double rating;
   final int reviewCount;
   final bool isVerified;
@@ -24,15 +27,23 @@ class Trip {
     required this.departureDate,
     required this.timeZone,
     required this.availableWeightGrams,
+    int? totalWeightGrams,
+    this.reservedWeightGrams = 0,
     required this.pricePerKg,
     this.isDemo = true,
+    this.status = 'AVAILABLE',
     this.rating = 5.0,
     this.reviewCount = 32,
-    this.isVerified = true,
+    this.isVerified = false,
     this.avatarAsset = 'assets/images/travelers/ana.jpg',
-  });
+  }) : totalWeightGrams =
+           totalWeightGrams ?? availableWeightGrams + reservedWeightGrams;
 
   double get availableWeightKg => availableWeightGrams / 1000.0;
+  double get totalWeightKg => totalWeightGrams / 1000.0;
+  bool get isAvailable => status == 'AVAILABLE';
+  bool get isCancelled => status == 'CANCELLED';
+  bool get isExpired => status == 'EXPIRED';
 
   /// Nome limpo para exibição ao consumidor final (remove sufixo "(exemplo)" da API)
   String get cleanTravelerName {
@@ -57,6 +68,39 @@ class Trip {
     }
     return '${kg.toStringAsFixed(1).replaceAll('.', ',')} kg';
   }
+
+  String get formattedTotalWeight => _formatWeight(totalWeightGrams);
+  String get formattedReservedWeight => _formatWeight(reservedWeightGrams);
+
+  static String _formatWeight(int grams) {
+    final kg = grams / 1000.0;
+    return kg == kg.roundToDouble()
+        ? '${kg.toInt()} kg'
+        : '${kg.toStringAsFixed(1).replaceAll('.', ',')} kg';
+  }
+
+  Trip withCapacity({
+    required int totalWeightGrams,
+    required int reservedWeightGrams,
+    required int availableWeightGrams,
+  }) => Trip(
+    id: id,
+    travelerName: travelerName,
+    origin: origin,
+    destination: destination,
+    departureDate: departureDate,
+    timeZone: timeZone,
+    availableWeightGrams: availableWeightGrams,
+    totalWeightGrams: totalWeightGrams,
+    reservedWeightGrams: reservedWeightGrams,
+    pricePerKg: pricePerKg,
+    isDemo: isDemo,
+    status: status,
+    rating: rating,
+    reviewCount: reviewCount,
+    isVerified: isVerified,
+    avatarAsset: avatarAsset,
+  );
 
   String get formattedDatePt {
     final parts = departureDate.split('-');
@@ -95,10 +139,14 @@ class Trip {
         lower.contains('nyc')) {
       return '🇺🇸';
     }
-    if (lower.contains('londres') || lower.contains('reino unido') || lower.contains('uk')) {
+    if (lower.contains('londres') ||
+        lower.contains('reino unido') ||
+        lower.contains('uk')) {
       return '🇬🇧';
     }
-    if (lower.contains('tóquio') || lower.contains('toquio') || lower.contains('japão')) {
+    if (lower.contains('tóquio') ||
+        lower.contains('toquio') ||
+        lower.contains('japão')) {
       return '🇯🇵';
     }
     if (lower.contains('paris') || lower.contains('frança')) {
@@ -128,7 +176,10 @@ class Trip {
   }
 
   String get initials {
-    final words = cleanTravelerName.split(' ').where((w) => w.isNotEmpty).toList();
+    final words = cleanTravelerName
+        .split(' ')
+        .where((w) => w.isNotEmpty)
+        .toList();
     if (words.isEmpty) return 'V';
     if (words.length == 1) return words.first.substring(0, 1).toUpperCase();
     return '${words[0][0]}${words[1][0]}'.toUpperCase();
@@ -166,12 +217,18 @@ class Trip {
       destination: json['destination'] as String? ?? '',
       departureDate: json['departureDate'] as String? ?? '',
       timeZone: json['timeZone'] as String? ?? 'America/Sao_Paulo',
-      availableWeightGrams: (json['availableWeightGrams'] as num?)?.toInt() ?? 0,
-      pricePerKg: Money.fromJson(json['pricePerKg'] as Map<String, dynamic>? ?? {}),
+      availableWeightGrams:
+          (json['availableWeightGrams'] as num?)?.toInt() ?? 0,
+      totalWeightGrams: (json['totalWeightGrams'] as num?)?.toInt(),
+      reservedWeightGrams: (json['reservedWeightGrams'] as num?)?.toInt() ?? 0,
+      pricePerKg: Money.fromJson(
+        json['pricePerKg'] as Map<String, dynamic>? ?? {},
+      ),
       isDemo: json['isDemo'] as bool? ?? false,
+      status: json['status'] as String? ?? 'AVAILABLE',
       rating: (json['rating'] as num?)?.toDouble() ?? defaultRating,
       reviewCount: (json['reviewCount'] as num?)?.toInt() ?? defaultReviews,
-      isVerified: json['isVerified'] as bool? ?? true,
+      isVerified: false,
       avatarAsset: json['avatarAsset'] as String? ?? defaultAsset,
     );
   }
@@ -184,8 +241,11 @@ class Trip {
     'departureDate': departureDate,
     'timeZone': timeZone,
     'availableWeightGrams': availableWeightGrams,
+    'totalWeightGrams': totalWeightGrams,
+    'reservedWeightGrams': reservedWeightGrams,
     'pricePerKg': pricePerKg.toJson(),
     'isDemo': isDemo,
+    'status': status,
   };
 }
 
