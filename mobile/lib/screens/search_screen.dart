@@ -4,6 +4,7 @@ import '../models/trip.dart';
 import '../state/app_state.dart';
 import '../theme/trago_theme.dart';
 import '../widgets/traveler_card.dart';
+import 'my_trips_screen.dart';
 
 class SearchScreen extends StatefulWidget {
   final ValueChanged<int> onNavigateTab;
@@ -81,7 +82,9 @@ class _SearchScreenState extends State<SearchScreen> {
     if (_sortBy == 'menor_preco') {
       list.sort((a, b) => a.pricePerKgUsdInt.compareTo(b.pricePerKgUsdInt));
     } else if (_sortBy == 'maior_espaco') {
-      list.sort((a, b) => b.availableWeightGrams.compareTo(a.availableWeightGrams));
+      list.sort(
+        (a, b) => b.availableWeightGrams.compareTo(a.availableWeightGrams),
+      );
     } else if (_sortBy == 'data_proxima') {
       list.sort((a, b) => a.departureDate.compareTo(b.departureDate));
     }
@@ -158,10 +161,23 @@ class _SearchScreenState extends State<SearchScreen> {
       appBar: AppBar(
         backgroundColor: TragoColors.paper,
         leading: IconButton(
-          icon: const Icon(Icons.chevron_left_rounded, size: 30, color: TragoColors.navy),
+          icon: const Icon(
+            Icons.chevron_left_rounded,
+            size: 30,
+            color: TragoColors.navy,
+          ),
           onPressed: () => widget.onNavigateTab(0),
         ),
         title: const Text('Encontrar um viajante'),
+        actions: [
+          IconButton(
+            tooltip: 'Minhas viagens',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const MyTripsScreen()),
+            ),
+            icon: const Icon(Icons.list_alt_rounded),
+          ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
@@ -210,7 +226,8 @@ class _SearchScreenState extends State<SearchScreen> {
                   value: _selectedDestination,
                   trailingFlag: '🇧🇷',
                   items: _destinations.map((e) => e['label']!).toList(),
-                  onChanged: (val) => setState(() => _selectedDestination = val),
+                  onChanged: (val) =>
+                      setState(() => _selectedDestination = val),
                 ),
                 const SizedBox(height: 14),
 
@@ -246,17 +263,36 @@ class _SearchScreenState extends State<SearchScreen> {
                     icon: const Icon(Icons.search_rounded, size: 22),
                     label: const Text(
                       'Buscar viajantes',
-                      style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w700),
+                      style: TextStyle(
+                        fontSize: 16.5,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                    onPressed: () {
-                      state.syncWithBackend();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('${filteredTrips.length} viajantes verificados encontrados.'),
-                          behavior: SnackBarBehavior.floating,
-                          duration: const Duration(seconds: 2),
-                        ),
-                      );
+                    onPressed: () async {
+                      try {
+                        await state.refreshAvailableTrips();
+                        if (!context.mounted) return;
+                        final count = _filterAndSort(state.trips).length;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              '$count viagens disponíveis encontradas.',
+                            ),
+                            behavior: SnackBarBehavior.floating,
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      } catch (error) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Não foi possível buscar viagens: $error',
+                              ),
+                            ),
+                          );
+                        }
+                      }
                     },
                   ),
                 ),
@@ -287,7 +323,11 @@ class _SearchScreenState extends State<SearchScreen> {
                   padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                   child: Row(
                     children: [
-                      Icon(Icons.filter_alt_outlined, size: 18, color: TragoColors.navy),
+                      Icon(
+                        Icons.filter_alt_outlined,
+                        size: 18,
+                        color: TragoColors.navy,
+                      ),
                       SizedBox(width: 4),
                       Text(
                         'Ordenar',
@@ -315,7 +355,11 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
               child: Column(
                 children: [
-                  const Icon(Icons.flight_outlined, size: 46, color: TragoColors.muted),
+                  const Icon(
+                    Icons.flight_outlined,
+                    size: 46,
+                    color: TragoColors.muted,
+                  ),
                   const SizedBox(height: 12),
                   const Text(
                     'Nenhum viajante para este filtro específico.',
@@ -342,10 +386,22 @@ class _SearchScreenState extends State<SearchScreen> {
             ...filteredTrips.map(
               (trip) => TravelerCard(
                 trip: trip,
-                isSelected: state.selectedTrip.id == trip.id,
-                onTap: () {
-                  state.selectTrip(trip);
-                  widget.onNavigateTab(2); // Abre Detalhes do Pedido com este viajante
+                isSelected: state.selectedTrip?.id == trip.id,
+                onTap: () async {
+                  try {
+                    await state.loadTripDetails(trip.id);
+                    if (context.mounted) widget.onNavigateTab(2);
+                  } catch (error) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Não foi possível abrir a viagem: $error',
+                          ),
+                        ),
+                      );
+                    }
+                  }
                 },
               ),
             ),
@@ -390,7 +446,10 @@ class _SelectorField extends StatelessWidget {
                 Text(trailingFlag!, style: const TextStyle(fontSize: 18)),
                 const SizedBox(width: 8),
               ],
-              const Icon(Icons.keyboard_arrow_down_rounded, color: TragoColors.navy),
+              const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: TragoColors.navy,
+              ),
             ],
           ),
           items: items.map((item) {

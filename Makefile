@@ -38,7 +38,7 @@ flutter-test:
 	cd mobile && flutter test
 
 flutter-run:
-	cd mobile && flutter run
+	cd mobile && flutter run --dart-define=TRAGO_DEMO_MODE=true --dart-define=API_BASE_URL=http://10.0.2.2:3001
 
 clean:
 	rm -rf backend/dist mobile/build

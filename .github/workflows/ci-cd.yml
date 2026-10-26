@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   backend-ci:
@@ -51,7 +51,7 @@ jobs:
         run: npm run check
 
   flutter-ci:
-    name: Flutter Mobile Analyze, Test, APK Build & Release
+    name: Flutter Mobile Analyze, Test & Release APK
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -83,8 +83,19 @@ jobs:
 
       - name: Build Release Android APK
         working-directory: mobile
+        env:
+          TRAGO_API_BASE_URL: ${{ vars.TRAGO_API_BASE_URL }}
         run: |
-          flutter build apk --release
+          set -euo pipefail
+          if [ -z "${TRAGO_API_BASE_URL}" ]; then
+            echo "TRAGO_API_BASE_URL is not configured; building the standalone demo release."
+            flutter build apk --release --dart-define=TRAGO_DEMO_MODE=true
+          elif [[ "${TRAGO_API_BASE_URL}" == https://* ]]; then
+            flutter build apk --release --dart-define=API_BASE_URL="${TRAGO_API_BASE_URL}"
+          else
+            echo "TRAGO_API_BASE_URL must use HTTPS for a release build." >&2
+            exit 1
+          fi
           cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/trago-android-release.apk
 
       - name: Upload Release APK Artifact
@@ -96,26 +107,36 @@ jobs:
             mobile/build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
 
+  release-apk:
+    name: Publish Android APK to GitHub Releases
+    runs-on: ubuntu-latest
+    needs: [backend-ci, flutter-ci]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    permissions:
+      contents: write
+    steps:
+      - name: Download Release APK Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: trago-release-apk
+          path: release-apk
+
       - name: Publish Android APK to GitHub Releases
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v1.0.0' }}
           name: "Trago Android Release (${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v1.0.0' }})"
           body: |
-            ## Trago — Aplicativo Android (APK Release)
+            ## Trago — aplicativo Android
 
-            ### Destaques da Versão
-            - **Interface Mobile Completa em Flutter** fiel à identidade visual (`Design.png`).
-            - **Mapa Interativo de Rotas Aéreas (`flutter_map` + `latlong2`)**: arcos geodésicos, distância em km e marcadores interativos entre hubs internacionais (`JFK`, `MIA`, `LHR`, `HND`, `CDG`) e aeroportos brasileiros (`GRU`, `GIG`, `CWB`).
-            - **APIs Públicas em Tempo Real**:
-              - Cotações comerciais `USD/BRL`, `EUR/BRL` e `GBP/BRL` via ExchangeRate Open API.
-              - Clima ao vivo nos aeroportos de origem e destino via Open-Meteo API.
-            - **Simulador Fiscal PF & PJ**: cálculo automático de isenção de bagagem acompanhada (US$ 1.000) vs. importação empresarial P2B (II + ICMS), com geração de **QR Code PIX** (`qr_flutter`) e compartilhamento (`share_plus`).
-            - **Catálogo de Produtos e Viajantes Verificados** com fotografias reais integradas.
+            Este release contém o APK Android validado pelo pipeline do projeto.
+
+            - Sem `TRAGO_API_BASE_URL`, o APK abre no modo demonstração isolado.
+            - Com `TRAGO_API_BASE_URL` HTTPS, o APK usa cadastro, login e dados reais da API.
+            - Aceitar uma solicitação reserva capacidade, mas não representa pagamento ou custódia financeira.
           files: |
-            mobile/build/app/outputs/flutter-apk/trago-android-release.apk
-            mobile/build/app/outputs/flutter-apk/app-release.apk
+            release-apk/trago-android-release.apk
+            release-apk/app-release.apk
           draft: false
           prerelease: false
 

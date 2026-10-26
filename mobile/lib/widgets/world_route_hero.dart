@@ -65,10 +65,15 @@ class _WorldRouteHeroState extends State<WorldRouteHero>
 
   @override
   Widget build(BuildContext context) {
-    final nyc = PublicIntegrationsService.globalHubs['Nova York (EUA)']!.coordinates;
-    final lon = PublicIntegrationsService.globalHubs['Londres (Reino Unido)']!.coordinates;
-    final tyo = PublicIntegrationsService.globalHubs['Tóquio (Japão)']!.coordinates;
-    final sp = PublicIntegrationsService.globalHubs['São Paulo (SP)']!.coordinates;
+    final nyc =
+        PublicIntegrationsService.globalHubs['Nova York (EUA)']!.coordinates;
+    final lon = PublicIntegrationsService
+        .globalHubs['Londres (Reino Unido)']!
+        .coordinates;
+    final tyo =
+        PublicIntegrationsService.globalHubs['Tóquio (Japão)']!.coordinates;
+    final sp =
+        PublicIntegrationsService.globalHubs['São Paulo (SP)']!.coordinates;
 
     final polylines = [
       Polyline(
@@ -99,11 +104,7 @@ class _WorldRouteHeroState extends State<WorldRouteHero>
         gradient: const LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFFF2F8FF),
-            Color(0xFFDCEEFF),
-            Color(0xFFEAF5FE),
-          ],
+          colors: [Color(0xFFF2F8FF), Color(0xFFDCEEFF), Color(0xFFEAF5FE)],
         ),
         border: Border.all(color: const Color(0xFFD5E8FA), width: 1),
       ),
@@ -170,7 +171,8 @@ class _WorldRouteHeroState extends State<WorldRouteHero>
                   child: _CityRoutePill(
                     flag: '🇬🇧',
                     city: 'Londres',
-                    onTap: () => widget.onCityTap?.call('Londres (Reino Unido)'),
+                    onTap: () =>
+                        widget.onCityTap?.call('Londres (Reino Unido)'),
                   ),
                 ),
 
@@ -222,14 +224,21 @@ class _WorldRouteHeroState extends State<WorldRouteHero>
                       onTap: () => _openFullInteractiveMap(context),
                       borderRadius: BorderRadius.circular(18),
                       child: const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 11,
+                          vertical: 6,
+                        ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.map_outlined, color: Colors.white, size: 14),
+                            Icon(
+                              Icons.map_outlined,
+                              color: Colors.white,
+                              size: 14,
+                            ),
                             SizedBox(width: 5),
                             Text(
-                              'Explorar mapa ao vivo',
+                              'Explorar mapa ilustrativo',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 11,
@@ -436,7 +445,9 @@ class _FullInteractiveRouteMapSheet extends StatelessWidget {
           ),
           Expanded(
             child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(20),
+              ),
               child: FlutterMap(
                 options: const MapOptions(
                   initialCenter: LatLng(12.0, -30.0),
@@ -466,11 +477,7 @@ class _CityRoutePill extends StatelessWidget {
   final String city;
   final VoidCallback? onTap;
 
-  const _CityRoutePill({
-    required this.flag,
-    required this.city,
-    this.onTap,
-  });
+  const _CityRoutePill({required this.flag, required this.city, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -563,15 +570,30 @@ class _WorldMapRoutesPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     canvas.drawOval(
-      Rect.fromLTWH(size.width * 0.04, size.height * 0.15, size.width * 0.28, size.height * 0.45),
+      Rect.fromLTWH(
+        size.width * 0.04,
+        size.height * 0.15,
+        size.width * 0.28,
+        size.height * 0.45,
+      ),
       continentPaint,
     );
     canvas.drawOval(
-      Rect.fromLTWH(size.width * 0.36, size.height * 0.10, size.width * 0.25, size.height * 0.38),
+      Rect.fromLTWH(
+        size.width * 0.36,
+        size.height * 0.10,
+        size.width * 0.25,
+        size.height * 0.38,
+      ),
       continentPaint,
     );
     canvas.drawOval(
-      Rect.fromLTWH(size.width * 0.68, size.height * 0.18, size.width * 0.26, size.height * 0.42),
+      Rect.fromLTWH(
+        size.width * 0.68,
+        size.height * 0.18,
+        size.width * 0.26,
+        size.height * 0.42,
+      ),
       continentPaint,
     );
 

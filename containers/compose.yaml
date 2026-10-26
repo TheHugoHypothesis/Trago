@@ -27,6 +27,8 @@ services:
       DATABASE_URL: postgresql://trago:tragopassword@db:5432/trago
       NODE_ENV: development
       TRAGO_DEMO_AUTH: "true"
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:?Set a random AUTH_JWT_SECRET of at least 32 bytes}
+      AUTH_TOKEN_TTL_SECONDS: ${AUTH_TOKEN_TTL_SECONDS:-900}
       PORT: "3001"
     ports:
       - "3001:3001"

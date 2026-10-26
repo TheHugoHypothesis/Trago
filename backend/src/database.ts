@@ -31,10 +31,11 @@ export class Database {
   const fixture = JSON.parse(readFileSync(fixturePath, 'utf8'));
   for (const id of fixture.users) await c.query('INSERT INTO demo_users VALUES($1) ON CONFLICT DO NOTHING',[id]);
   const accounts=[...fixture.accounts,{id:'company-numeric',type:'ORGANIZATION',displayName:'Segunda empresa sintética',taxId:'12.345.678/0001-95'}];
-  for (const {ownerId,...data} of accounts) await c.query('INSERT INTO accounts VALUES($1,$2,$3) ON CONFLICT DO NOTHING',[data.id,ownerId ?? null,data]);
+  for (const {ownerId,...data} of accounts) await c.query('INSERT INTO accounts(id,owner_id,data) VALUES($1,$2,$3) ON CONFLICT DO NOTHING',[data.id,ownerId ?? null,data]);
   for (const m of [...fixture.memberships,{userId:'buyer',accountId:'company-numeric',active:true},{userId:'outsider',accountId:'company-numeric',active:false}])
    await c.query('INSERT INTO memberships VALUES($1,$2,$3) ON CONFLICT DO NOTHING',[m.userId,m.accountId,m.active]);
-  for (const data of fixture.trips) await c.query('INSERT INTO trips VALUES($1,$2,$3) ON CONFLICT DO NOTHING',[data.id,'traveler',data]);
+  for (const data of fixture.trips) await c.query(`INSERT INTO trips(id,traveler_id,data,total_capacity_grams)
+   VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING`,[data.id,'traveler',data,data.availableWeightGrams]);
  }
  async onModuleDestroy() {await this.pool.end();}
 }

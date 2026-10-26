@@ -36,7 +36,7 @@ class LiveMarketData {
     usdToBrl: 4.97,
     eurToBrl: 5.41,
     gbpToBrl: 6.32,
-    updatedAtLabel: 'Cotação comercial atualizada',
+    updatedAtLabel: 'Valores de exemplo; cotação indisponível',
     hubTemperatures: {
       'Nova York (EUA)': '16°C • Céu limpo',
       'Miami (EUA)': '27°C • Ensolarado',
@@ -117,7 +117,11 @@ class PublicIntegrationsService {
   }
 
   /// Gera arco geodésico suave entre dois aeroportos para o PolylineLayer do flutter_map
-  static List<LatLng> generateFlightArc(LatLng start, LatLng end, {int segments = 28}) {
+  static List<LatLng> generateFlightArc(
+    LatLng start,
+    LatLng end, {
+    int segments = 28,
+  }) {
     final points = <LatLng>[];
     final midLat = (start.latitude + end.latitude) / 2;
     final midLng = (start.longitude + end.longitude) / 2;
@@ -127,27 +131,31 @@ class PublicIntegrationsService {
       final t = i / segments;
       final invT = 1 - t;
       // Curva de Bézier quadrática sobre coordenadas geográficas
-      final lat = invT * invT * start.latitude +
+      final lat =
+          invT * invT * start.latitude +
           2 * invT * t * (midLat + curveOffset) +
           t * t * end.latitude;
-      final lng = invT * invT * start.longitude +
+      final lng =
+          invT * invT * start.longitude +
           2 * invT * t * midLng +
           t * t * end.longitude;
-      points.add(LatLng(
-        lat.clamp(-85.0, 85.0),
-        ((lng + 180) % 360) - 180,
-      ));
+      points.add(LatLng(lat.clamp(-85.0, 85.0), ((lng + 180) % 360) - 180));
     }
     return points;
   }
 
   /// Consulta API pública de câmbio (open.er-api.com) + clima aeroportuário (Open-Meteo)
-  static Future<LiveMarketData> fetchLiveMarketData({http.Client? client}) async {
+  static Future<LiveMarketData> fetchLiveMarketData({
+    http.Client? client,
+  }) async {
     final httpClient = client ?? http.Client();
     double usdBrl = LiveMarketData.fallback.usdToBrl;
     double eurBrl = LiveMarketData.fallback.eurToBrl;
     double gbpBrl = LiveMarketData.fallback.gbpToBrl;
-    final temps = Map<String, String>.from(LiveMarketData.fallback.hubTemperatures);
+    bool hasLiveFx = false;
+    final temps = Map<String, String>.from(
+      LiveMarketData.fallback.hubTemperatures,
+    );
 
     try {
       final fxRes = await httpClient
@@ -158,6 +166,7 @@ class PublicIntegrationsService {
         final rates = data['rates'] as Map<String, dynamic>?;
         if (rates != null && rates['BRL'] is num) {
           usdBrl = (rates['BRL'] as num).toDouble();
+          hasLiveFx = true;
           final eurRate = (rates['EUR'] as num?)?.toDouble() ?? 0.92;
           final gbpRate = (rates['GBP'] as num?)?.toDouble() ?? 0.79;
           eurBrl = usdBrl / math.max(eurRate, 0.1);
@@ -189,7 +198,9 @@ class PublicIntegrationsService {
       usdToBrl: usdBrl,
       eurToBrl: eurBrl,
       gbpToBrl: gbpBrl,
-      updatedAtLabel: 'Câmbio comercial ao vivo (API Pública)',
+      updatedAtLabel: hasLiveFx
+          ? 'Câmbio consultado na API pública'
+          : LiveMarketData.fallback.updatedAtLabel,
       hubTemperatures: temps,
     );
   }
