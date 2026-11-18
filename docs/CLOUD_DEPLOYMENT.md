@@ -124,7 +124,7 @@ Use estes campos depois da aprovação e do envio da branch revisada. O botão *
 | Tipo | **New → Web Service** |
 | Source | Repositório GitHub `TheHugoHypothesis/Trago` |
 | Name | `trago-api`, se disponível |
-| Branch | `codex/trago-cloud-mvp` |
+| Branch | `feat/cloud-mvp` |
 | Language / Runtime | Docker |
 | Instance Type | Free |
 | Region | Virginia (US East), região inicial recomendada. [Regiões do Render](https://render.com/docs/regions) |
@@ -135,6 +135,8 @@ Use estes campos depois da aprovação e do envio da branch revisada. O botão *
 | Health Check Path | `/health` |
 | Auto Deploy | Off |
 | Secret Files / Persistent Disk | Nenhum |
+
+Para novas branches no Trago, use prefixos como `feat/`, `fix/`, `chore/` ou `docs/`.
 
 Em **Environment Variables**, cadastre os valores abaixo. `RENDER=true` e `PORT` são automáticos. A API escuta em `0.0.0.0` na porta indicada pela plataforma. [Variáveis padrão do Render](https://render.com/docs/environment-variables).
 
