@@ -1,3 +1,4 @@
+require('./disposable-database.cjs');
 const {test} = require('node:test');
 const assert = require('node:assert/strict');
 const {randomBytes, randomUUID, createHmac} = require('node:crypto');
@@ -25,7 +26,7 @@ function check(method, path, response) {
 }
 
 async function setup() {
-  let app = await createApp({demo:false, environment:'production'});
+  let app = await createApp({demo:false, environment:'test'});
   const pool = new Pool({connectionString:process.env.DATABASE_URL});
   const users = new Set();
   const limitKeys = new Set();
@@ -45,7 +46,7 @@ async function setup() {
   };
   return {
     pool, call, key, ip,
-    restart: async() => {await app.close(); app = await createApp({demo:false, environment:'production'});},
+    restart: async() => {await app.close(); app = await createApp({demo:false, environment:'test'});},
     close: async() => {
       try {
         await pool.query('DELETE FROM users WHERE id=ANY($1::uuid[])', [[...users]]);
@@ -163,7 +164,8 @@ test('real PF/PJ ownership isolates users and one user can buy and travel', asyn
     assert.equal(charlieAccounts.length,1);
     assert(!charlieAccounts.some(a=>a.id===organizationId || a.id===alicePf.id || a.id===bobPf.id));
 
-    const tripInput={origin:'Recife',destination:'Lisboa',departureDate:'2026-12-20',timeZone:'America/Recife',availableWeightGrams:3000,pricePerKg:{amount:'100',currency:'USD'}};
+    const departureDate=new Date(Date.now()+30*24*60*60*1000).toISOString().slice(0,10);
+    const tripInput={origin:'Recife',destination:'Lisboa',departureDate,timeZone:'America/Recife',availableWeightGrams:3000,pricePerKg:{amount:'100',currency:'USD'}};
     const trip=await t.call('POST','/v1/trips',tripInput,alice.accessToken,{'idempotency-key':`real-trip-${randomUUID()}`});
     assert.equal(trip.statusCode,201,trip.body);tripId=trip.json().id;
     assert.equal(trip.json().travelerName,alice.user.displayName);
@@ -429,7 +431,7 @@ test('invalid credentials, malformed input and concurrent duplicate registration
   } finally {await t.close();}
 });
 
-test('missing, tampered, expired, wrong-algorithm and demo tokens cannot authorize production', async() => {
+test('missing, tampered, expired, wrong-algorithm and demo tokens cannot authorize with demo disabled', async() => {
   const t = await setup();
   try {
     const registered = (await t.call('POST','/v1/auth/register',registration())).json();

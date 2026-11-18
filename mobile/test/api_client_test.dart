@@ -66,6 +66,49 @@ void main() {
     await tester.pump();
   });
 
+  testWidgets('consulta HTTPS aguarda a inicialização da API', (tester) async {
+    final response = Completer<http.Response>();
+    var calls = 0;
+    final client = TragoApiClient(
+      baseUrl: 'https://test.invalid',
+      token: 'test',
+      client: MockClient((_) {
+        calls++;
+        return response.future;
+      }),
+    );
+    final result = expectLater(client.getAccounts(), completion(isEmpty));
+    await tester.pump(const Duration(seconds: 70));
+    response.complete(http.Response('{"items":[]}', 200));
+    await result;
+    expect(calls, 1);
+  });
+
+  test(
+    'página de inicialização vira erro legível e não repete login',
+    () async {
+      var calls = 0;
+      final client = TragoApiClient(
+        baseUrl: 'https://test.invalid',
+        client: MockClient((_) async {
+          calls++;
+          return http.Response(
+            '<html>Starting</html>',
+            200,
+            headers: {'content-type': 'text/html'},
+          );
+        }),
+      );
+      await expectLater(
+        client.login(email: 'test@invalid.example', password: 'synthetic-test'),
+        throwsA(
+          isA<ApiException>().having((e) => e.code, 'code', 'API_UNAVAILABLE'),
+        ),
+      );
+      expect(calls, 1);
+    },
+  );
+
   test('falha de rede vira erro tipado sem pedido fictício', () async {
     final client = TragoApiClient(
       baseUrl: 'http://test.invalid',

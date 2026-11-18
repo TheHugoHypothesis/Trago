@@ -85,9 +85,9 @@ make down
 
 O workflow em [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml) executa automaticamente em cada `push` e `pull_request` na branch `main`:
 
-1. **`backend-ci`**: Sobe um serviço PostgreSQL 17, instala dependências Node.js, valida o build TypeScript (`npm run build`) e executa os testes de contrato e integração (`npm test`).
+1. **`backend-ci`** compila o TypeScript e usa um PostgreSQL 17 descartável criado pela própria suíte.
 2. **`flutter-ci`**: Configura o SDK do Flutter, valida o código, executa os testes e compila um APK release. Sem `TRAGO_API_BASE_URL`, produz uma versão de demonstração isolada; com a variável configurada, exige uma URL HTTPS para a API real.
-3. **`release-apk`**: após os testes, publica o APK em GitHub Releases nos pushes da `main` e em tags `v*`, mantendo o comportamento de distribuição existente no projeto.
+3. **`release-apk`** publica o APK de um push de tag `v*` no GitHub Releases após os testes. Os pushes na `main` disponibilizam o APK como artefato da execução.
 4. **`container-cd`**: Valida a construção da imagem OCI do backend (`containers/Containerfile.backend`).
 
 ### Configuração e limites da demonstração
@@ -96,7 +96,7 @@ O workflow em [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml) execu
 
 O backend permite CORS para `http://localhost:3000` e `http://127.0.0.1:3000` fora de produção. Defina `CORS_ORIGINS` como lista de origens separadas por vírgula quando necessário; em produção, o padrão é nenhuma origem. CORS não substitui autenticação.
 
-Para testar no PowerShell após iniciar PostgreSQL e a API, execute `cd backend; npm ci; $env:DATABASE_URL='postgresql://trago:tragopassword@localhost:5432/trago'; npm run check`. No Flutter, use `cd mobile; flutter pub get; flutter analyze; flutter test`. Veja [o relatório de implementação](docs/IMPLEMENTATION_STATUS.md) para o estado verificado e as limitações.
+Para testar com Podman no PowerShell, inicie a máquina do Podman, entre em `backend`, execute `npm ci`, defina `$env:TRAGO_TEST_CONTAINER_ENGINE='podman'` e rode `npm run check`. Com Docker, basta deixar essa variável sem valor. No Flutter, execute `flutter pub get`, `flutter analyze` e `flutter test` a partir de `mobile`. A preparação para Render e Supabase está no [guia Trago Cloud MVP](docs/CLOUD_DEPLOYMENT.md).
 
 ## Autenticação, contas, viagens, decisões e capacidade (T04–T09)
 

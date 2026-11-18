@@ -1,9 +1,11 @@
+require('./disposable-database.cjs');
 const {test}=require('node:test');
 process.env.AUTH_JWT_SECRET ??= require('node:crypto').randomBytes(48).toString('base64');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const {createApp}=require('../dist/main.js');
+const futureDate=new Date(Date.now()+30*24*60*60*1000).toISOString().slice(0,10);
 const Ajv=require('ajv');
 const ajv=new Ajv({strict:false});require('ajv-formats')(ajv);
 const contractPath = process.env.CONTRACT_PATH || [
@@ -43,11 +45,11 @@ test('PostgreSQL: PF/PJ isolation, persistence, idempotency and validation', asy
  assert(accounts.some(a=>a.taxId==='12.ABC.345/01DE-35'));
  assert(accounts.some(a=>a.id==='company-numeric'));
  assert.equal((await call('GET','/v1/me/accounts','revoked')).body.items.length,0);
- const trip={origin:'Teste origem',destination:'Teste destino',departureDate:'2026-12-20',timeZone:'America/Sao_Paulo',availableWeightGrams:1000,pricePerKg:{amount:'100',currency:'USD'}};
+ const trip={origin:'Teste origem',destination:'Teste destino',departureDate:futureDate,timeZone:'America/Sao_Paulo',availableWeightGrams:1000,pricePerKg:{amount:'100',currency:'USD'}};
  assert.equal((await call('POST','/v1/trips','buyer',trip,'trip-buyer-key')).status,403);
  const published=await call('POST','/v1/trips','traveler',trip,'trip-publish-key');
  assert.equal(published.status,201);publishedId=published.body.id;
- assert((await call('GET','/v1/trips?origin=Teste%20origem&departureDate=2026-12-20')).body.items.some(t=>t.id===published.body.id));
+ assert((await call('GET',`/v1/trips?origin=Teste%20origem&departureDate=${futureDate}`)).body.items.some(t=>t.id===published.body.id));
  assert.equal((await call('GET','/v1/trips?departureDate=2026-02-30')).status,400);
  {
   const mk=(w,n)=>({accountId:'personal-buyer',tripId:published.body.id,product:{description:'Cap '+n,price:{amount:'1',currency:'BRL'},estimatedWeightGrams:w}});
@@ -90,7 +92,7 @@ test('PostgreSQL: PF/PJ isolation, persistence, idempotency and validation', asy
 });
 test('demo authentication is explicit and production rejects demo configuration',async()=>{
  await assert.rejects(()=>createApp({demo:true,environment:'production'}),/demo/i);
- const app=await createApp({demo:false,environment:'production'});
+ const app=await createApp({demo:false,environment:'test'});
  try {assert.equal((await app.getHttpAdapter().getInstance().inject({url:'/v1/me/accounts',headers:{authorization:'Bearer dev:buyer'}})).statusCode,401);} finally {await app.close();}
  const demo=await createApp({demo:true,environment:'test'});
  try {
@@ -113,7 +115,7 @@ test('pagination accepts its cursor with long filters and rejects invalid cursor
  const search=cursor=>server.inject({url:'/v1/trips?'+query+(cursor===undefined?'':'&cursor='+encodeURIComponent(cursor)),headers:{authorization:'Bearer dev:buyer'}});
  try {
   for(let i=0;i<21;i++) {
-   const r=await server.inject({method:'POST',url:'/v1/trips',headers:{authorization:'Bearer dev:traveler','idempotency-key':`pagination-trip-${suffix}-${i}`},payload:{origin,destination,departureDate:'2026-12-20',timeZone:'UTC',availableWeightGrams:1000,pricePerKg:{amount:'100',currency:'USD'}}});
+   const r=await server.inject({method:'POST',url:'/v1/trips',headers:{authorization:'Bearer dev:traveler','idempotency-key':`pagination-trip-${suffix}-${i}`},payload:{origin,destination,departureDate:futureDate,timeZone:'UTC',availableWeightGrams:1000,pricePerKg:{amount:'100',currency:'USD'}}});
    assert.equal(r.statusCode,201);ids.push(r.json().id);
   }
   const first=await search();assert.equal(first.statusCode,200);

@@ -996,6 +996,16 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "Authentication temporarily at capacity (AUTH_BUSY)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         }
       }
@@ -1048,6 +1058,16 @@
           },
           "429": {
             "description": "Too many attempts; retry after the 15 minute window",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Authentication temporarily at capacity (AUTH_BUSY)",
             "content": {
               "application/json": {
                 "schema": {
