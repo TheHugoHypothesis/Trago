@@ -11,7 +11,7 @@ Flutter → API NestJS/Fastify no Render via HTTPS → PostgreSQL no Supabase vi
 | T00–T03 | Base local, contratos, autorização e idempotência cobertas pela regressão existente |
 | T04–T06 | Cadastro, login, revogação de sessão, persistência segura no Flutter e contas PF/PJ com controle de acesso |
 | T07–T09 | Gestão de viagens, pedidos, decisões do viajante e reserva de capacidade com transações |
-| T10–T12 | Fora do escopo atual. A documentação identifica semântica monetária em T10 e lista pagamento/custódia, rastreio e verificação documental como pendências. O backlog que detalha T11 e T12 não está versionado na base analisada |
+| T10–T12 | Fora do escopo atual. O [backlog de consolidação](CLOUD_MVP_BACKLOG.md) registra a semântica monetária da T10 e as pendências que ainda precisam de escopo aprovado |
 
 O aceite reserva o peso declarado. Valores exibidos são estimativas. Use contas e produtos fictícios nas validações do MVP.
 
@@ -161,4 +161,41 @@ Com `TRUST_PROXY_HOPS=0`, a aplicação ignora cabeçalhos de encaminhamento for
 
 - O Gitleaks verificou o diff e o conteúdo completo dos arquivos preparados para o commit. O único arquivo de ambiente versionado é `.env.example`, com valores de exemplo. A imagem foi inspecionada sem rede para confirmar a ausência de arquivos de credenciais e a leitura da CA pública pelo usuário `node`.
 - A suíte voltou a passar com 17 testes de backend em PostgreSQL 17 descartável e 43 testes Flutter. A análise estática Flutter também passou. A regressão de backend confirmou a rejeição de papel administrativo ou elevado e o comportamento do limite de IP com cabeçalhos não confiáveis.
-- O build Docker foi validado localmente. O Supabase do MVP ficou fora da suíte desta etapa. A primeira implantação e a verificação da topologia real no Render aguardam aprovação.
+- O build Docker foi validado localmente. O Supabase do MVP ficou fora da suíte da preparação.
+
+### Validação do deploy da T15
+
+Em 17/11/2026, o serviço informado no Render estava em `https://trago-qyfz.onrender.com`, com a branch `feat/cloud-mvp` e o commit `7fc0ba2`. O endpoint [`/health`](https://trago-qyfz.onrender.com/health) retornou HTTP 200 e `{"status":"ok"}` com a validação TLS ativa.
+
+- Foram verificados via HTTPS cadastro e login de dois usuários fictícios, isolamento de contas PF, publicação e consulta de viagem, pedido e aceite. Uma tentativa de aceite pelo comprador retornou 404. Repetir o aceite manteve 1.300 g reservados e 6.700 g disponíveis.
+- O logout revogou a sessão anterior. Um novo login recuperou o mesmo pedido aceito e a mesma capacidade pelo backend do Render. A persistência no Supabase foi observada pela API. A validação não reiniciou o serviço.
+- Em um email fictício exclusivo, os dez primeiros logins inválidos retornaram 401 e o 11º retornou 429. O bloqueio por email persistiu com um valor de `X-Forwarded-For` diferente. Outro email retornou 401, mostrando que o bloqueio observado era específico do email. A separação das cotas por IP entre origens reais no Render ainda não foi medida.
+- O responsável pelo deploy confirmou a substituição das credenciais e os ajustes no Supabase e no Render. As credenciais anteriores não foram reutilizadas para testar a rotação.
+
+## T16 — APK Android conectado à nuvem
+
+Para reproduzir a compilação, execute no diretório `mobile`:
+
+```powershell
+flutter build apk --release --dart-define=API_BASE_URL=https://trago-qyfz.onrender.com --dart-define=TRAGO_DEMO_MODE=false
+```
+
+O primeiro teste no emulador detectou que a variante release não tinha a permissão `android.permission.INTERNET`. A permissão foi adicionada ao manifesto principal do Android e confirmada no APK recompilado. O APK usa HTTPS e mantém a demonstração desativada.
+
+O APK de teste `Trago-Cloud-MVP.apk` foi salvo localmente, com aproximadamente 52,9 MiB. O pacote é `com.trago.trago`, exige Android API 24 ou superior e inclui binários ARM de 32 e 64 bits e x86_64. O `apksigner verify` confirmou a assinatura v2, usando a chave de desenvolvimento configurada no projeto.
+
+SHA-256 do APK: `366d329308d91f30d2b5fb0d2c85c27524aac63572a47f33f80b2f426e89d902`.
+
+Em 18/11/2026, esse APK foi instalado e aberto no emulador Android 15 (API 35). A conta fictícia entrou pela API HTTPS, a sessão foi restaurada após encerrar e abrir o aplicativo, e uma viagem criada no Render apareceu em **Minhas viagens**, com 4 kg disponíveis.
+
+## T17 — Validação manual em celular físico
+
+Em 18/11/2026, Gustavo confirmou a instalação e a abertura do APK no celular físico. Também confirmou cadastro, login, consulta de viagens e consulta de pedidos. O modelo do aparelho e a versão do Android não foram informados nesta rodada.
+
+Esta validação manual cobre apenas esses fluxos. Publicação, aceite e reserva estão registrados no teste pela API da T15. A restauração de sessão foi conferida no emulador na T16.
+
+O APK pode ser compartilhado como arquivo para instalação manual em Android. Use o arquivo `Trago-Cloud-MVP.apk` conferido acima ou reproduza a compilação local com a URL pública. Se já houver uma instalação do mesmo pacote assinada com outra chave, o Android pode recusar a atualização. A chave atual é de desenvolvimento.
+
+Na consolidação, passaram 17 testes de backend com PostgreSQL 17 descartável, 43 testes Flutter e a análise estática. O build da imagem backend foi conferido, e o `npm audit --omit=dev` reportou zero vulnerabilidades. A assinatura v2 e o SHA-256 do APK usado no teste foram conferidos novamente.
+
+A variável global `TRAGO_API_BASE_URL` permanece como estava. A configuração do GitHub Actions, o merge e a publicação de release dependem de aprovação. As melhorias de interface e distribuição estão no [backlog](CLOUD_MVP_BACKLOG.md).
