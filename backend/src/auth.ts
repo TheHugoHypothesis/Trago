@@ -7,7 +7,7 @@ import {ApiError, invalid, validate} from './validation';
 
 export const JWT_ISSUER = 'trago-api';
 export const JWT_AUDIENCE = 'trago-client';
-interface AuthConfiguration {secret: string; ttlSeconds: number}
+interface AuthConfiguration {secret: string; ttlSeconds: number; maxConcurrentAuth: number}
 interface Credentials {email: string; password: string}
 interface Registration extends Credentials {displayName: string}
 interface UserRow {id: string; email: string; display_name: string; created_at: Date}
@@ -27,11 +27,16 @@ export function loadAuthConfiguration(env: NodeJS.ProcessEnv = process.env): Aut
   if (!/^\d+$/.test(rawTtl) || !Number.isSafeInteger(ttlSeconds) || ttlSeconds < 60 || ttlSeconds > 86400) {
     throw new Error('AUTH_TOKEN_TTL_SECONDS must be an integer between 60 and 86400');
   }
-  return {secret, ttlSeconds};
+  const concurrency = env.AUTH_MAX_CONCURRENT ?? '2';
+  if (!/^[1-4]$/.test(concurrency)) {
+    throw new Error('AUTH_MAX_CONCURRENT must be an integer between 1 and 4');
+  }
+  return {secret, ttlSeconds, maxConcurrentAuth: Number(concurrency)};
 }
 
 export class AuthService {
   private dummyHash = '';
+  private activeAuthRequests = 0;
   constructor(private readonly db: Database, private readonly config: AuthConfiguration) {}
 
   async initialize() {
@@ -56,6 +61,24 @@ export class AuthService {
   }
 
   async register(input: unknown, ip: string) {
+    return this.withAuthSlot(() => this.registerUser(input, ip));
+  }
+
+  async login(input: unknown, ip: string) {
+    return this.withAuthSlot(() => this.loginUser(input, ip));
+  }
+
+  private async withAuthSlot<T>(operation: () => Promise<T>): Promise<T> {
+    // Bound pending DB work and native Argon2 allocations without a waiting queue.
+    if (this.activeAuthRequests >= this.config.maxConcurrentAuth) {
+      throw new ApiError(503, 'AUTH_BUSY', 'A autenticação está ocupada. Aguarde alguns segundos e tente novamente.');
+    }
+    this.activeAuthRequests++;
+    try { return await operation(); }
+    finally { this.activeAuthRequests--; }
+  }
+
+  private async registerUser(input: unknown, ip: string) {
     await this.throttle('register:ip', ip, 10);
     validate('RegisterInput', input);
     const data = input as Registration;
@@ -85,7 +108,7 @@ export class AuthService {
     }
   }
 
-  async login(input: unknown, ip: string) {
+  private async loginUser(input: unknown, ip: string) {
     await this.throttle('login:ip', ip, 30);
     validate('LoginInput', input);
     const data = input as Credentials;

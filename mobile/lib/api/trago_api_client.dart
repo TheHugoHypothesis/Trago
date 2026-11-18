@@ -32,7 +32,9 @@ class ApiException implements Exception {
       return ApiException(
         statusCode: statusCode,
         code: 'HTTP_$statusCode',
-        message: body.isNotEmpty ? body : 'Erro HTTP $statusCode',
+        message: const {502, 503, 504}.contains(statusCode)
+            ? 'O Trago está temporariamente indisponível. Tente novamente em instantes.'
+            : 'Erro HTTP $statusCode',
       );
     }
   }
@@ -61,7 +63,10 @@ class TragoApiClient {
     this.onUnauthorized,
   }) : _client = client ?? http.Client();
 
-  Map<String, String> _headers({String? idempotencyKey}) {
+  Map<String, String> _headers({
+    String? idempotencyKey,
+    bool hasJsonBody = false,
+  }) {
     final accessToken = token;
     if (accessToken == null || accessToken.isEmpty) {
       throw const ApiException(
@@ -70,10 +75,10 @@ class TragoApiClient {
         message: 'Entre na sua conta para continuar.',
       );
     }
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $accessToken',
-    };
+    final headers = {'Authorization': 'Bearer $accessToken'};
+    if (hasJsonBody) {
+      headers['Content-Type'] = 'application/json';
+    }
     if (idempotencyKey != null && idempotencyKey.isNotEmpty) {
       headers['Idempotency-Key'] = idempotencyKey;
     }
@@ -109,9 +114,23 @@ class TragoApiClient {
     return uri;
   }
 
-  Future<http.Response> _write(Future<http.Response> Function() request) async {
+  // A primeira chamada HTTPS pode aguardar a inicialização do serviço.
+  Duration get _requestTimeout => Uri.parse(baseUrl).scheme == 'https'
+      ? const Duration(seconds: 90)
+      : const Duration(seconds: 10);
+
+  Future<http.Response> _send(Future<http.Response> Function() request) async {
     try {
-      return await request().timeout(const Duration(seconds: 10));
+      final response = await request().timeout(_requestTimeout);
+      if (response.statusCode < 400 &&
+          response.headers['content-type']?.contains('text/html') == true) {
+        throw const ApiException(
+          statusCode: 503,
+          code: 'API_UNAVAILABLE',
+          message: 'A API ainda está iniciando. Tente novamente em instantes.',
+        );
+      }
+      return response;
     } on TimeoutException {
       throw const ApiException(
         statusCode: 0,
@@ -130,9 +149,7 @@ class TragoApiClient {
   /// Verifica saúde da API (público, sem auth)
   Future<bool> checkHealth() async {
     try {
-      final response = await _client
-          .get(_uri('/health'))
-          .timeout(const Duration(seconds: 4));
+      final response = await _send(() => _client.get(_uri('/health')));
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body);
         return body['status'] == 'ok';
@@ -148,7 +165,7 @@ class TragoApiClient {
     required String password,
     required String displayName,
   }) async {
-    final response = await _write(
+    final response = await _send(
       () => _client.post(
         _uri('/v1/auth/register'),
         headers: _publicHeaders,
@@ -171,7 +188,7 @@ class TragoApiClient {
     required String email,
     required String password,
   }) async {
-    final response = await _write(
+    final response = await _send(
       () => _client.post(
         _uri('/v1/auth/login'),
         headers: _publicHeaders,
@@ -187,7 +204,7 @@ class TragoApiClient {
   }
 
   Future<AuthUser> getCurrentUser() async {
-    final response = await _write(
+    final response = await _send(
       () => _client.get(_uri('/v1/auth/me'), headers: _headers()),
     );
     if (response.statusCode == 200) {
@@ -199,7 +216,7 @@ class TragoApiClient {
   }
 
   Future<void> logout() async {
-    final response = await _write(
+    final response = await _send(
       () => _client.post(_uri('/v1/auth/logout'), headers: _headers()),
     );
     if (response.statusCode == 204) return;
@@ -208,9 +225,8 @@ class TragoApiClient {
 
   /// Lista contas do usuário logado (PF/PJ)
   Future<List<Account>> getAccounts() async {
-    final response = await _client.get(
-      _uri('/v1/me/accounts'),
-      headers: _headers(),
+    final response = await _send(
+      () => _client.get(_uri('/v1/me/accounts'), headers: _headers()),
     );
 
     if (response.statusCode == 200) {
@@ -225,10 +241,10 @@ class TragoApiClient {
   }
 
   Future<Account> createOrganizationAccount(String displayName) async {
-    final response = await _write(
+    final response = await _send(
       () => _client.post(
         _uri('/v1/me/accounts/organizations'),
-        headers: _headers(),
+        headers: _headers(hasJsonBody: true),
         body: jsonEncode({'displayName': displayName}),
       ),
     );
@@ -241,10 +257,10 @@ class TragoApiClient {
   }
 
   Future<void> addOrganizationMember(String accountId, String email) async {
-    final response = await _write(
+    final response = await _send(
       () => _client.post(
         _uri('/v1/me/accounts/${Uri.encodeComponent(accountId)}/members'),
-        headers: _headers(),
+        headers: _headers(hasJsonBody: true),
         body: jsonEncode({'email': email}),
       ),
     );
@@ -259,16 +275,18 @@ class TragoApiClient {
     String? departureDate,
     String? cursor,
   }) async {
-    final response = await _client.get(
-      _uri('/v1/trips', {
-        if (origin != null && origin.isNotEmpty) 'origin': origin,
-        if (destination != null && destination.isNotEmpty)
-          'destination': destination,
-        if (departureDate != null && departureDate.isNotEmpty)
-          'departureDate': departureDate,
-        if (cursor != null && cursor.isNotEmpty) 'cursor': cursor,
-      }),
-      headers: _headers(),
+    final response = await _send(
+      () => _client.get(
+        _uri('/v1/trips', {
+          if (origin != null && origin.isNotEmpty) 'origin': origin,
+          if (destination != null && destination.isNotEmpty)
+            'destination': destination,
+          if (departureDate != null && departureDate.isNotEmpty)
+            'departureDate': departureDate,
+          if (cursor != null && cursor.isNotEmpty) 'cursor': cursor,
+        }),
+        headers: _headers(),
+      ),
     );
 
     if (response.statusCode == 200) {
@@ -285,10 +303,10 @@ class TragoApiClient {
 
   /// Publica nova viagem para a identidade autenticada.
   Future<Trip> createTrip(TripInput input, String idempotencyKey) async {
-    final response = await _write(
+    final response = await _send(
       () => _client.post(
         _uri('/v1/trips'),
-        headers: _headers(idempotencyKey: idempotencyKey),
+        headers: _headers(idempotencyKey: idempotencyKey, hasJsonBody: true),
         body: jsonEncode(input.toJson()),
       ),
     );
@@ -302,9 +320,8 @@ class TragoApiClient {
   }
 
   Future<List<Trip>> getMyTrips() async {
-    final response = await _client.get(
-      _uri('/v1/me/trips'),
-      headers: _headers(),
+    final response = await _send(
+      () => _client.get(_uri('/v1/me/trips'), headers: _headers()),
     );
     if (response.statusCode == 200) {
       final data =
@@ -317,9 +334,11 @@ class TragoApiClient {
   }
 
   Future<Trip> getTrip(String tripId) async {
-    final response = await _client.get(
-      _uri('/v1/trips/${Uri.encodeComponent(tripId)}'),
-      headers: _headers(),
+    final response = await _send(
+      () => _client.get(
+        _uri('/v1/trips/${Uri.encodeComponent(tripId)}'),
+        headers: _headers(),
+      ),
     );
     if (response.statusCode == 200) {
       return Trip.fromJson(
@@ -330,10 +349,10 @@ class TragoApiClient {
   }
 
   Future<Trip> updateTrip(String tripId, TripInput input) async {
-    final response = await _write(
+    final response = await _send(
       () => _client.patch(
         _uri('/v1/trips/${Uri.encodeComponent(tripId)}'),
-        headers: _headers(),
+        headers: _headers(hasJsonBody: true),
         body: jsonEncode(input.toJson()),
       ),
     );
@@ -346,7 +365,7 @@ class TragoApiClient {
   }
 
   Future<Trip> cancelTrip(String tripId) async {
-    final response = await _write(
+    final response = await _send(
       () => _client.post(
         _uri('/v1/trips/${Uri.encodeComponent(tripId)}/cancel'),
         headers: _headers(),
@@ -365,12 +384,14 @@ class TragoApiClient {
     String accountId, {
     String? cursor,
   }) async {
-    final response = await _client.get(
-      _uri('/v1/purchase-requests', {
-        'accountId': accountId,
-        if (cursor != null && cursor.isNotEmpty) 'cursor': cursor,
-      }),
-      headers: _headers(),
+    final response = await _send(
+      () => _client.get(
+        _uri('/v1/purchase-requests', {
+          'accountId': accountId,
+          if (cursor != null && cursor.isNotEmpty) 'cursor': cursor,
+        }),
+        headers: _headers(),
+      ),
     );
 
     if (response.statusCode == 200) {
@@ -390,10 +411,10 @@ class TragoApiClient {
     RequestInput input,
     String idempotencyKey,
   ) async {
-    final response = await _write(
+    final response = await _send(
       () => _client.post(
         _uri('/v1/purchase-requests'),
-        headers: _headers(idempotencyKey: idempotencyKey),
+        headers: _headers(idempotencyKey: idempotencyKey, hasJsonBody: true),
         body: jsonEncode(input.toJson()),
       ),
     );
@@ -407,9 +428,8 @@ class TragoApiClient {
   }
 
   Future<List<PurchaseRequest>> getIncomingPurchaseRequests() async {
-    final response = await _client.get(
-      _uri('/v1/me/incoming-requests'),
-      headers: _headers(),
+    final response = await _send(
+      () => _client.get(_uri('/v1/me/incoming-requests'), headers: _headers()),
     );
     if (response.statusCode == 200) {
       final data =
@@ -422,9 +442,11 @@ class TragoApiClient {
   }
 
   Future<PurchaseRequest> getPurchaseRequest(String requestId) async {
-    final response = await _client.get(
-      _uri('/v1/purchase-requests/${Uri.encodeComponent(requestId)}'),
-      headers: _headers(),
+    final response = await _send(
+      () => _client.get(
+        _uri('/v1/purchase-requests/${Uri.encodeComponent(requestId)}'),
+        headers: _headers(),
+      ),
     );
     if (response.statusCode == 200) {
       return PurchaseRequest.fromJson(
@@ -439,7 +461,7 @@ class TragoApiClient {
     required bool accept,
   }) async {
     final action = accept ? 'accept' : 'reject';
-    final response = await _write(
+    final response = await _send(
       () => _client.post(
         _uri('/v1/purchase-requests/${Uri.encodeComponent(requestId)}/$action'),
         headers: _headers(),

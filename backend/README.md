@@ -17,7 +17,7 @@ $env:NODE_ENV = 'development'
 npm run dev
 ```
 
-Use um banco local dedicado e substitua os placeholders. Preserve o segredo em ambiente privado entre reinícios; não gere um novo a cada inicialização se precisar conservar sessões. A API escuta a porta 3001. O exemplo `.env.example` da raiz lista as variáveis; Node não carrega `.env` automaticamente. Depois de compilar, Node 22 também aceita `node --env-file=../.env dist/main.js`.
+Use um banco local dedicado e substitua os placeholders. Preserve o segredo em ambiente privado entre reinícios para conservar as sessões. A API usa `PORT`, com padrão 3001. O exemplo `.env.example` da raiz lista as variáveis. Depois de compilar, Node 22 também aceita `node --env-file=../.env dist/main.js`. Veja a configuração de TLS e banco remoto no [guia de implantação](../docs/CLOUD_DEPLOYMENT.md).
 
 `AUTH_JWT_SECRET` é obrigatório, com no mínimo 32 bytes. `AUTH_TOKEN_TTL_SECONDS` aceita inteiros de 60 a 86400 segundos, padrão 900. Configuração inválida impede inicialização. O JWT usa somente HS256, issuer `trago-api`, audience `trago-client`, `sub` do usuário, `jti` da sessão e expiração obrigatória. Cada acesso verifica assinatura, expiração e sessão ativa no banco.
 
@@ -81,7 +81,7 @@ As rotas de contas, viagens e pedidos preservam autorização a cada acesso, res
 
 ## Testes
 
-Com `DATABASE_URL` apontando para PostgreSQL dedicado, execute `npm run check`. Os testes geram seu próprio segredo e senhas aleatórias dentro do processo, validam respostas contra OpenAPI e limpam os usuários/recursos criados. As fixtures de autenticação contêm somente nomes e emails sintéticos.
+Com Docker disponível, execute `npm run check`. Para Podman, configure `TRAGO_TEST_CONTAINER_ENGINE=podman` antes do comando. A suíte cria seu próprio PostgreSQL 17 com porta local e senhas aleatórias, ignora `DATABASE_URL` do ambiente e remove o contêiner ao terminar. As fixtures de autenticação contêm somente nomes e emails sintéticos.
 
 A suíte verifica os fluxos legados, autenticação, conta PF concorrente, titularidade PF/PJ, isolamento, publicação idempotente, ciclo de viagens e decisões. Os casos T09 incluem saldo insuficiente, aceites simultâneos, repetição, rejeição sem consumo, cancelamento concorrente, rollback integral, consistência do agregado e backfill de pedidos aceitos antes da migração.
 

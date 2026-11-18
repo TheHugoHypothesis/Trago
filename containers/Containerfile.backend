@@ -1,21 +1,20 @@
-FROM docker.io/library/node:22-bookworm-slim
-
-WORKDIR /app
-
-RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
-
-COPY contracts /app/contracts
-COPY backend/package*.json /app/backend/
+FROM docker.io/library/node:22-bookworm-slim AS build
 WORKDIR /app/backend
+COPY backend/package*.json ./
 RUN npm ci
+COPY backend/tsconfig.json ./
+COPY backend/src ./src
+RUN npm run build && npm prune --omit=dev
 
-COPY backend /app/backend
-RUN npm run build
-
+FROM docker.io/library/node:22-bookworm-slim
+WORKDIR /app/backend
 ENV NODE_ENV=production \
-    TRAGO_DEMO_AUTH=false \
-    PORT=3001
+    TRAGO_DEMO_AUTH=false
 
-EXPOSE 3001
-
+COPY --from=build /app/backend/node_modules ./node_modules
+COPY --from=build /app/backend/dist ./dist
+COPY backend/migrations ./migrations
+COPY contracts /app/contracts
+COPY certs/prod-ca-2021.crt /app/certs/prod-ca-2021.crt
+USER node
 CMD ["node", "dist/main.js"]

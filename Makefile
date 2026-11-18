@@ -29,7 +29,7 @@ backend-build:
 	cd backend && npm run build
 
 backend-test:
-	cd backend && DATABASE_URL="postgresql://trago:tragopassword@localhost:5432/trago" npm test
+	cd backend && TRAGO_TEST_CONTAINER_ENGINE=podman npm run check
 
 backend-dev:
 	cd backend && NODE_ENV=development TRAGO_DEMO_AUTH=true npm run dev

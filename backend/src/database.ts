@@ -1,12 +1,67 @@
-import { Pool, PoolClient } from 'pg';
+import { Pool, PoolClient, PoolConfig } from 'pg';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 export const componentRoot = resolve(__dirname, '..');
+
+export function loadDatabaseConfiguration(env: NodeJS.ProcessEnv, production: boolean): PoolConfig {
+ const connectionString = env.DATABASE_URL;
+ let url: URL;
+ try {
+  url = new URL(connectionString ?? '');
+ } catch {
+  throw new Error('DATABASE_URL must be a valid PostgreSQL URL');
+ }
+ if (!['postgres:', 'postgresql:'].includes(url.protocol) || !url.hostname ||
+     url.pathname.length < 2 || url.search || url.hash ||
+     (production && (!url.username || !url.password))) {
+  throw new Error('DATABASE_URL must specify a PostgreSQL host and database, without query or fragment');
+ }
+ const tls = env.DATABASE_TLS ?? 'false';
+ const schema = env.DATABASE_SCHEMA;
+ const render = env.RENDER === 'true';
+ const caFile = env.DATABASE_TLS_CA_FILE?.trim();
+ const inlineCa = env.DATABASE_TLS_CA?.trim();
+ if (!['true', 'false'].includes(tls) || ((production || caFile || inlineCa) && tls !== 'true')) {
+  throw new Error('DATABASE_TLS must be true in production and when a CA is configured');
+ }
+ if ((schema && !/^[a-z][a-z0-9_]{0,62}$/.test(schema)) ||
+     (production && (!schema || schema === 'public' || schema === 'information_schema' || schema.startsWith('pg_')))) {
+  throw new Error('DATABASE_SCHEMA must identify a dedicated schema in production');
+ }
+ if (render && (schema !== 'trago' || !/^trago_app(?:\.[a-z0-9]{20})?$/.test(url.username))) {
+  throw new Error('Render requires the trago_app database role and trago schema');
+ }
+ if (caFile && inlineCa) throw new Error('Configure only one PostgreSQL CA source');
+ const ca = caFile ? readFileSync(caFile, 'utf8').trim() : inlineCa;
+ if (render && !ca) throw new Error('Render requires an explicit PostgreSQL CA');
+ return {
+  connectionString,
+  ssl: tls === 'true' ? {rejectUnauthorized: true, ...(ca ? {ca} : {})} : false,
+  max: 5,
+  connectionTimeoutMillis: 5000,
+  idleTimeoutMillis: 10000,
+  onConnect: schema ? async client => {
+   if (render) {
+    const {rows} = await client.query(`
+     SELECT current_user = 'trago_app' AND session_user = 'trago_app'
+       AND NOT (rolsuper OR rolcreatedb OR rolcreaterole OR rolreplication OR rolbypassrls)
+       AND NOT EXISTS (SELECT 1 FROM pg_auth_members WHERE member = pg_roles.oid)
+       AS restricted FROM pg_roles WHERE rolname = current_user
+    `);
+    if (rows[0]?.restricted !== true) throw new Error('Render database role is not restricted');
+   }
+   await client.query(`SET search_path TO "${schema}"`);
+   const {rows} = await client.query('SELECT current_schema() AS schema');
+   if (rows[0].schema !== schema) throw new Error('DATABASE_SCHEMA is missing or inaccessible');
+  } : undefined,
+ };
+}
+
 export class Database {
  readonly pool: Pool;
- constructor() {
-  if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required; PostgreSQL has no fallback');
-  this.pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 5, connectionTimeoutMillis: 5000 });
+ constructor(production: boolean) {
+  this.pool = new Pool(loadDatabaseConfiguration(process.env, production));
+  this.pool.on('error', () => console.error('Idle PostgreSQL connection interrupted'));
  }
  async transaction<T>(action: (client: PoolClient) => Promise<T>): Promise<T> {
   const c = await this.pool.connect();

@@ -3,13 +3,28 @@ import {ArgumentsHost, Catch, Controller, ExceptionFilter, Get, Header, HttpCode
 import {NestFactory} from '@nestjs/core';
 import {FastifyAdapter, NestFastifyApplication} from '@nestjs/platform-fastify';
 import {randomUUID} from 'node:crypto';
+import {isIP} from 'node:net';
 import {Database} from './database';
 import {ApiService, Query as QueryValues} from './service';
 import {ApiError} from './validation';
 import {AuthService, loadAuthConfiguration} from './auth';
-interface Request {headers:Record<string,string|string[]|undefined>;ip:string}
-interface Configuration {demo:boolean;environment:string}
+interface Request {
+ headers:Record<string,string|string[]|undefined>;
+ ips?:string[];
+ socket:{remoteAddress?:string};
+}
+interface Configuration {demo:boolean;environment:string;trustProxyHops?:number}
 const CONFIG=Symbol('configuration');
+
+export function loadHttpConfiguration(env: NodeJS.ProcessEnv = process.env) {
+ const port = env.PORT ?? '3001';
+ const hops = env.TRUST_PROXY_HOPS ?? '0';
+ if (!/^\d+$/.test(port) || Number(port) < 1 || Number(port) > 65535) {
+  throw new Error('PORT must be an integer between 1 and 65535');
+ }
+ if (!/^[0-5]$/.test(hops)) throw new Error('TRUST_PROXY_HOPS must be an integer between 0 and 5');
+ return {port:Number(port), trustProxyHops:Number(hops)};
+}
 @Catch()
 class Errors implements ExceptionFilter {
  catch(error:unknown,host:ArgumentsHost) {
@@ -28,7 +43,8 @@ class ApiController {
   if(this.config.demo && ['development','test'].includes(this.config.environment) && match) return match[1];
   return (await this.auth.session(auth)).user.id;
  }
- @Get('health') async health() {await this.service.db.pool.query('SELECT 1');return {status:'ok'};}
+ @Get('health') @Header('Cache-Control','no-store')
+ async health() {await this.service.db.pool.query('SELECT 1');return {status:'ok'};}
  @Get('v1/me/accounts') async accounts(@Req() r:Request) {return this.service.accounts(await this.actor(r));}
  @Post('v1/me/accounts/organizations') async createOrganization(@Req() r:Request,@Body() b:unknown) {
   return this.service.createOrganization(await this.actor(r),b);
@@ -59,11 +75,17 @@ class ApiController {
 
 @Controller('v1/auth')
 class AuthController {
- constructor(private readonly auth:AuthService) {}
+ constructor(private readonly auth:AuthService,@Inject(CONFIG) private readonly config:Configuration) {}
+ private clientIp(request:Request) {
+  const hops=this.config.trustProxyHops ?? 0;
+  const forwarded=hops ? request.ips?.[hops] : undefined;
+  const address=forwarded && isIP(forwarded) ? forwarded : request.socket.remoteAddress ?? 'unknown';
+  return /^::ffff:\d+\./i.test(address) ? address.slice(7) : address.toLowerCase();
+ }
  @Post('register') @Header('Cache-Control','no-store')
- register(@Req() r:Request,@Body() b:unknown) {return this.auth.register(b,r.ip);}
+ register(@Req() r:Request,@Body() b:unknown) {return this.auth.register(b,this.clientIp(r));}
  @Post('login') @HttpCode(200) @Header('Cache-Control','no-store')
- login(@Req() r:Request,@Body() b:unknown) {return this.auth.login(b,r.ip);}
+ login(@Req() r:Request,@Body() b:unknown) {return this.auth.login(b,this.clientIp(r));}
  @Get('me') @Header('Cache-Control','no-store')
  async me(@Req() r:Request) {return (await this.auth.session(r.headers.authorization)).user;}
  @Post('logout') @HttpCode(204) @Header('Cache-Control','no-store')
@@ -72,18 +94,24 @@ class AuthController {
 @Module({})
 class ApiModule {}
 export async function createApp(options?:Configuration):Promise<NestFastifyApplication> {
- const config=options??{demo:process.env.TRAGO_DEMO_AUTH==='true',environment:process.env.NODE_ENV??'development'};
+ const config=options??{demo:process.env.TRAGO_DEMO_AUTH==='true',
+  environment:process.env.NODE_ENV??'development',trustProxyHops:loadHttpConfiguration().trustProxyHops};
+ const production=config.environment==='production';
+ if(process.env.RENDER==='true' && !production) throw new Error('Render requires NODE_ENV=production');
  if(config.demo && !['development','test'].includes(config.environment)) throw new Error('Demo authentication is allowed only in development/test');
  const authConfig=loadAuthConfiguration();
- const db=new Database();
+ const db=new Database(production);
  try {
-  await db.initialize(config.demo && config.environment!=='production');
+  await db.initialize(config.demo);
   const auth=new AuthService(db,authConfig);
   await auth.initialize();
+  const hops=config.trustProxyHops ?? 0;
   const app=await NestFactory.create<NestFastifyApplication>({module:ApiModule,controllers:[ApiController,AuthController],providers:[
    {provide:CONFIG,useValue:config},{provide:Database,useValue:db},{provide:ApiService,useFactory:()=>new ApiService(db)},
    {provide:AuthService,useValue:auth}
-  ]},new FastifyAdapter({bodyLimit:65536,logger:false}),{logger:false});
+  ]},new FastifyAdapter({bodyLimit:65536,logger:false,
+   trustProxy:hops ? (_address:string, hop:number) => hop<hops : false,
+  }),{logger:false,abortOnError:false});
   app.useGlobalFilters(new Errors());
   const corsOrigins=process.env.CORS_ORIGINS?.split(',').map(origin=>origin.trim()).filter(Boolean)
    ?? (config.environment==='production'?[]:['http://localhost:3000','http://127.0.0.1:3000']);
@@ -94,5 +122,14 @@ export async function createApp(options?:Configuration):Promise<NestFastifyAppli
  } catch(error) {await db.pool.end();throw error;}
 }
 if(require.main===module) {
- createApp().then(app=>app.listen(3001,'0.0.0.0')).catch(()=>{console.error('API startup failed; check PostgreSQL, AUTH_JWT_SECRET, AUTH_TOKEN_TTL_SECONDS and demo configuration.');process.exitCode=1;});
+ async function start() {
+  const {port}=loadHttpConfiguration();
+  const app=await createApp();
+  try {await app.listen(port,'0.0.0.0');}
+  catch(error) {await app.close();throw error;}
+ }
+ start().catch(()=>{
+  console.error('API startup failed; check PORT, proxy, PostgreSQL/TLS/schema, JWT and demo configuration.');
+  process.exitCode=1;
+ });
 }
