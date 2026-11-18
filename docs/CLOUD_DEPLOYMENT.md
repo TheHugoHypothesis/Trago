@@ -198,4 +198,6 @@ O APK pode ser compartilhado como arquivo para instalação manual em Android. U
 
 Na consolidação, passaram 17 testes de backend com PostgreSQL 17 descartável, 43 testes Flutter e a análise estática. O build da imagem backend foi conferido, e o `npm audit --omit=dev` reportou zero vulnerabilidades. A assinatura v2 e o SHA-256 do APK usado no teste foram conferidos novamente.
 
+A CI fixa o Flutter em `3.47.8`, a versão usada no APK validado. A primeira execução com o canal `stable` sem versão fixa parou na análise por avisos de obsolescência dos imports Material.
+
 A variável global `TRAGO_API_BASE_URL` permanece como estava. A configuração do GitHub Actions, o merge e a publicação de release dependem de aprovação. As melhorias de interface e distribuição estão no [backlog](CLOUD_MVP_BACKLOG.md).
